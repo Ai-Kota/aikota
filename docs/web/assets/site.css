@@ -157,6 +157,10 @@ pre code { color: var(--code-text); font-size: 13.5px; line-height: 1.7; }
   box-shadow: 0 24px 60px -28px rgba(38,37,30,.42);
 }
 .shot img { display: block; width: 100%; height: auto; }
+.shot pre.banner {
+  display: block; width: 100%; margin: 0; padding: 22px 24px; overflow-x: auto;
+  font-size: 12px; line-height: 1.35; background: transparent; color: var(--text);
+}
 .hero-shot { max-width: 960px; margin: 52px auto 0; }
 .shot-caption { text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 12px; }
 

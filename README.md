@@ -11,7 +11,18 @@ aikota 可以读写文件、执行命令、检索代码、抓取网页，并借�
 
 > 📖 配套电子书《用 Go 编写 pi Agent》：[write_pi_agent_in_go.pdf](https://github.com/smallnest/ebooks/blob/master/write_pi_agent_in_go.pdf)
 
-![](docs/aikota-tui.png)
+启动画面（由 `internal/cli/tui` 的 `renderBanner` 实际渲染，非截图）：
+
+```
+                                      aikota  Terminal AI coding assistant
+                                                                          
+        ⠛   ⣿            ⣤            Version    v0.1.0                   
+ ⠛⠛⠛⣤  ⠛⣿   ⣿ ⣤⠛  ⣤⠛⠛⠛⣤ ⠛⣿⠛⠛   ⠛⠛⠛⣤   Model      deepseek-v4-flash        
+⣤⠛⠛⠛⣿   ⣿   ⣿⠛⣤   ⣿   ⣿  ⣿  ⣤ ⣤⠛⠛⠛⣿   Provider   anthropic                
+ ⠛⠛⠛⠛  ⠛⠛⠛  ⠛  ⠛   ⠛⠛⠛    ⠛⠛   ⠛⠛⠛⠛   Protocol   anthropic                
+                                      Thinking   medium                   
+                                      Directory  ~/projects/app           
+```
 
 ---
 
