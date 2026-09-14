@@ -287,6 +287,8 @@ export ANTHROPIC_API_KEY=sk-ant-...
 aikota -P anthropic -m claude-3-5-sonnet-20241022 -p "..."
 ```
 
+> **本文讲"我该写哪个参数"。** 驱动分层（38 个 provider 塌缩到 3 个驱动）、端点拼接规则（`/v1` 坑）、认证顺序、传输层重试与双看门狗、双失败模型的**内部机制**，见 **[docs/providers.md](docs/providers.md)**。
+
 ---
 
 ## 内置工具
