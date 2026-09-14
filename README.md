@@ -55,7 +55,7 @@ aikota 可以读写文件、执行命令、检索代码、抓取网页，并借�
 
 - **三种运行形态**：无头 `-p`（脚本 / CI / 管道）、全屏 TUI（默认交互）、逐行 REPL（`--no-tui`，或 stdout 非终端时自动回退）。
 - **多 Provider**：OpenRouter（默认）、本地 Ollama、NVIDIA NIM、Anthropic、任意 OpenAI 兼容端点。
-- **内置工具集**：`read` / `write` / `edit` / `grep` / `find` / `repo_map` / `bash`（`run_in_background` 后台执行，配套 `bash_output` / `kill_bash`）/ `verify` / `todo` / `webfetch` / `websearch` / `memory_search` / `task`（子 Agent 并行派发）。
+- **内置工具集**：`read` / `write` / `edit` / `grep` / `find` / `repo_map` / `bash`（`run_in_background` 后台执行，配套 `bash_output` / `kill_bash`）/ `verify` / `todo` / `schedule_create` / `schedule_list` / `schedule_delete` / `webfetch` / `websearch` / `memory_search` / `task`（子 Agent 并行派发）。
 - **会话续跑**：`--list-sessions` / `--resume` / `--continue`，无头与交互模式均可续跑；`--no-session` 可完全不留会话文件（批量与编排场景）。
 - **stream-json 输出**：逐行 JSON 事件，首个事件携带 `session_id`，便于调用方关联。
 - **系统提示词分层组装**：base 指令 + 环境块 + `AGENTS.md`（general→specific）+ `--append-system-prompt`。
@@ -308,6 +308,9 @@ aikota -P anthropic -m claude-3-5-sonnet-20241022 -p "..."
 | `kill_bash` | 终止后台 bash 任务 |
 | `verify` | 运行项目自己的检查（build / test / lint）并回报结果。命令**从项目发现**：`go.mod`→`go build`+`go test`；`Cargo.toml`/`package.json`/`pyproject.toml` 同理；`.aikota/verify.json` 可完全覆盖。失败即停，只回传输出尾部 |
 | `todo` | 记录/更新结构化任务清单，每次提交整份列表（pending/in_progress/completed） |
+| `schedule_create` | 登记会话级定时提醒（一次性 `at`，或周期 `every_seconds`） |
+| `schedule_list` | 列出当前会话已登记的提醒 |
+| `schedule_delete` | 删除一条已登记的提醒 |
 | `webfetch` | 抓取 URL 并转为精简 Markdown 正文，HTTP 自动升级 HTTPS |
 | `websearch` | 联网搜索并返回标题/URL/摘要，按凭证自动选后端（`TAVILY_API_KEY`→Tavily，`BRAVE_API_KEY`→Brave，否则回落无 key 的 DuckDuckGo），支持 `allowed_domains`/`blocked_domains` 过滤 |
 | `memory_search` | 检索持久化记忆（`memory.enabled = false` 或 `--no-tools` 时不注册） |
