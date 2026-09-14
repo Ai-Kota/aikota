@@ -1,4 +1,8 @@
 # 在 push 到 master 及所有 PR 上运行构建、vet 与测试。
+#
+# 双平台矩阵：aikota 随 Windows 发行包发布，而缺陷恰恰容易只在 Windows 上
+# 显形（插件可执行位判定、路径分隔符、CRLF golden、sh 钩子里的反斜杠）。
+# 只跑 ubuntu 等于对这些缺陷零覆盖。
 name: ci
 
 on:
@@ -12,7 +16,20 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 两个平台各自跑完再汇总，一个失败不掩盖另一个的结果。
+      fail-fast: false
+      matrix:
+        include:
+          # Linux 跑竞态检测。
+          - os: ubuntu-latest
+            race: "-race"
+          # Windows 跑普通测试：这一腿的目的是平台可移植性信号，-race 需要
+          # C 工具链，不该因为工具链缺失而让整条腿失去信号。
+          - os: windows-latest
+            race: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,4 +46,4 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -race ./...
+        run: go test ${{ matrix.race }} ./...
