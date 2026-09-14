@@ -215,13 +215,13 @@ MCP 客户端 · plan mode · worktree 隔离 · notebook 编辑 · 多 agent te
 
    > 这条是实践中踩出来的：曾计划把 NATS 客户端直接加进 aikota（`go get nats.go` + 在事件发射点硬编发布）。依赖已撤。**症状**：需求描述里出现"**原生**"两个字时，先停一下问是哪一层的"原生"。
 
-   ### 5.5.1 已判定案例（三次独立判断，同一结论）
+### 5.5.1 已判定案例（三次独立判断，同一结论）
 
-   | # | 东西 | 性质 | 曾被考虑的合并方式 | 判定 | 正确形态 |
-   |---|---|---|---|---|---|
-   | 1 | **ai-guard** | 你的 AI 约束工具（SPT）| 内置进 aikota 当闸门 | ❌ 不内置 | 走 aikota 的 hook 层外挂；aikota 自己只做**通用安全底线** |
-   | 2 | **NATS** | 你的消息总线 | `go get nats.go` + 事件发射点硬编发布 | ❌ 不硬编 | aikota 提供**通用事件流**（已有 `stream-json` / `StreamEvents`），AImlyForge 侧写 bridge 消费 |
-   | 3 | **free-tier-aggregator** | 你的模型路由网关 | 合并进 aikota 作为一个模块 | ❌ 不合并 | **标准协议对接，零代码**（`--base-url` + `--protocol`）|
+| # | 东西 | 性质 | 曾被考虑的合并方式 | 判定 | 正确形态 |
+|---|---|---|---|---|---|
+| 1 | **ai-guard** | 你的 AI 约束工具（SPT）| 内置进 aikota 当闸门 | ❌ 不内置 | 走 aikota 的 hook 层外挂；aikota 自己只做**通用安全底线** |
+| 2 | **NATS** | 你的消息总线 | `go get nats.go` + 事件发射点硬编发布 | ❌ 不硬编 | aikota 提供**通用事件流**（已有 `stream-json` / `StreamEvents`），AImlyForge 侧写 bridge 消费 |
+| 3 | **free-tier-aggregator** | 你的模型路由网关 | 合并进 aikota 作为一个模块 | ❌ 不合并 | **标准协议对接，零代码**（`--base-url` + `--protocol`）|
 
 **三例的共同结构**：
 
