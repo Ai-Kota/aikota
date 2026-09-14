@@ -182,8 +182,8 @@ aikota 的拼接方式（`baseURL` + `/chat/completions` 或 `/messages`）**与
 
 | 项 | 现状 | 借鉴对象 | 价值 |
 |---|---|---|---|
-| **RepoMap** | ⬜ | openclaude `RepoMapTool`：*"Build a structural map of the repository showing **ranked files and their key signatures** (functions, classes, types, interfaces)"* | **上下文质量的最大单点提升**——让模型先看到骨架，而非靠 grep 摸黑 |
-| **LSP** | ⬜ | openclaude `LSPTool` | 从文本匹配升级到**语义理解**（真实定义/引用，而非正则） |
+| **RepoMap** | ✅ 完成 | openclaude `RepoMapTool`（借设计） | `internal/repomap` + `repo_map` 工具。**实现对 Go 是净简化**：openclaude 用 tree-sitter（C 库），aikota 用标准库 `go/parser`+`go/ast`——**零依赖、零 CGO**。算法保真：IDF 加权 + PageRank(α=0.85) + 焦点提升 + token 预算渲染。实测 aikota 自身：412 文件 / 103ms，排名首位是 `internal/agentcore/content.go`（所有包依赖的核心类型）|
+| **LSP** | ⬜ | openclaude `LSPTool` | 从文本匹配升级到**语义理解**（真实定义/引用，而非正则）。需外部 LSP server → 按 §5.5 需先判定归属 |
 | **验证闭环** | ⬜ | 无成熟参照（openclaude 亦弱） | 改动后自动跑测试/lint 并回喂结果——**"敢放手"的关键** |
 
 ### 第 3 层 · 锦上添花（按需，不建议一次全上）
