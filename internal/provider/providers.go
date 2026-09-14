@@ -325,6 +325,28 @@ func (d *anthropicCompatDriver) StreamCompletion(ctx context.Context, req Comple
 func encodeAnthropicRequest(req CompletionRequest, models []Model) ([]byte, error) {
 	msgs := make([]map[string]any, 0, len(req.Context.Messages))
 	for _, m := range req.Context.Messages {
+		// Anthropic requires each tool_use in an assistant turn to be answered
+		// by a tool_result in the single message that immediately follows it.
+		// A turn that calls several tools therefore has to collapse its results
+		// into ONE user message: emitting one message per result makes the API
+		// reject the request outright with "tool_use ids were found without
+		// tool_result blocks immediately after". The OpenAI wire has no such
+		// constraint (one `role: tool` message per result is its native shape),
+		// so this merging applies only here.
+		if tr, ok := m.(agentcore.ToolResultMessage); ok {
+			block := map[string]any{
+				"type":        "tool_result",
+				"tool_use_id": tr.ToolCallID,
+				"content":     agentcore.ContentToText(tr.Content),
+			}
+			if n := len(msgs); n > 0 && isToolResultCarrier(msgs[n-1]) {
+				prev := msgs[n-1]["content"].([]map[string]any)
+				msgs[n-1]["content"] = append(prev, block)
+				continue
+			}
+			msgs = append(msgs, map[string]any{"role": "user", "content": []map[string]any{block}})
+			continue
+		}
 		if enc := encodeAnthropicMessage(m); enc != nil {
 			msgs = append(msgs, enc)
 		}
@@ -464,9 +486,35 @@ func encodeAnthropicMessage(m agentcore.Message) map[string]any {
 			"tool_use_id": msg.ToolCallID,
 			"content":     agentcore.ContentToText(msg.Content),
 		}}}
+	// (tool results that arrive back-to-back are merged before this point; see
+	// encodeAnthropicRequest)
 	default:
 		return nil
 	}
+}
+
+// isToolResultCarrier reports whether an already-encoded message is a user
+// message made up entirely of tool_result blocks — the shape a merged
+// multi-result batch takes.
+//
+// Only such a message may absorb another result: merging into an ordinary user
+// turn would attach a tool_result to a message Anthropic does not consider an
+// answer to the preceding tool_use, which is the very error this guards
+// against.
+func isToolResultCarrier(m map[string]any) bool {
+	if m["role"] != "user" {
+		return false
+	}
+	blocks, ok := m["content"].([]map[string]any)
+	if !ok || len(blocks) == 0 {
+		return false
+	}
+	for _, b := range blocks {
+		if b["type"] != "tool_result" {
+			return false
+		}
+	}
+	return true
 }
 
 // anthropicUserContent shapes a user content list for the Anthropic Messages
