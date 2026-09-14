@@ -36,9 +36,21 @@ type MessageDeltaEvent struct {
 	Text string `json:"text"`
 }
 
-// MessageEndEvent carries the complete text of one finished assistant message.
+// MessageEndEvent carries the complete text of one finished assistant message,
+// and how that message ended.
+//
+// Callers need the stop reason to tell a finished answer from a failed or
+// truncated one — "the assistant said something" and "the assistant succeeded"
+// are different facts, and an SDK that reports only the text leaves the caller
+// unable to distinguish them.
 type MessageEndEvent struct {
 	Text string `json:"text"`
+	// StopReason is the provider's terminal reason: "end_turn" for a normal
+	// finish, plus "length" (truncated), "error", "aborted" and the tool-use
+	// reasons. Empty only if the provider reported none.
+	StopReason string `json:"stopReason,omitempty"`
+	// ErrorMessage explains a failed or aborted message. Empty on success.
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // ThinkingDeltaEvent carries only newly appended assistant reasoning text.
@@ -116,7 +128,11 @@ func (m *eventMapper) handle(event agentcore.AgentEvent) {
 		if !ok {
 			return
 		}
-		m.emitEvent(MessageEndEvent{Text: agentcore.ContentToText(message.Content)})
+		m.emitEvent(MessageEndEvent{
+			Text:         agentcore.ContentToText(message.Content),
+			StopReason:   message.StopReason,
+			ErrorMessage: message.ErrorMessage,
+		})
 		if message.Usage != nil {
 			m.emitEvent(UsageEvent{Usage: Usage{
 				InputTokens:  message.Usage.InputTokens,

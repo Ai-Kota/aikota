@@ -203,6 +203,13 @@ func eventEnvelope(ev agentcore.AgentEvent) map[string]any {
 		env["messageCount"] = len(e.Messages)
 	case agentcore.TurnEndEvent:
 		env["stopReason"] = e.Message.StopReason
+		// A terminal reason of "error" without the reason itself is
+		// unactionable: it says a run failed but not why. The message already
+		// carries it (newErrorAssistantMessage and the provider's stream-error
+		// path both set it), so carry it through instead of dropping it here.
+		if e.Message.ErrorMessage != "" {
+			env["errorMessage"] = e.Message.ErrorMessage
+		}
 		if text := agentcore.ContentToText(e.Message.Content); text != "" {
 			env["text"] = text
 		}

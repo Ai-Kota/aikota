@@ -132,6 +132,35 @@ func TestEventMapperMessageEndEmitsUsageAndResetsDeltas(t *testing.T) {
 	}
 }
 
+// TestEventMapperMessageEndCarriesTheOutcome: an SDK caller must be able to
+// tell a finished answer from a failed one. Reporting only the text leaves
+// them unable to react to a failure they are being told about.
+func TestEventMapperMessageEndCarriesTheOutcome(t *testing.T) {
+	var got []Event
+	m := eventMapper{emit: func(ev Event) { got = append(got, ev) }}
+
+	m.handle(agentcore.MessageEndEvent{Message: agentcore.AssistantMessage{
+		RoleField:    agentcore.RoleAssistant,
+		StopReason:   agentcore.StopReasonError,
+		ErrorMessage: "upstream 503",
+		Content:      agentcore.ContentList{agentcore.NewTextContent("partial")},
+	}})
+
+	if len(got) == 0 {
+		t.Fatal("no events emitted")
+	}
+	end, ok := got[0].(MessageEndEvent)
+	if !ok {
+		t.Fatalf("first event = %T, want MessageEndEvent", got[0])
+	}
+	if end.StopReason != agentcore.StopReasonError {
+		t.Errorf("StopReason = %q, want %q", end.StopReason, agentcore.StopReasonError)
+	}
+	if end.ErrorMessage != "upstream 503" {
+		t.Errorf("ErrorMessage = %q, want the reason", end.ErrorMessage)
+	}
+}
+
 func TestEventMapperMapsToolLifecycle(t *testing.T) {
 	var got []Event
 	m := eventMapper{emit: func(ev Event) { got = append(got, ev) }}
