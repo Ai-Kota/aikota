@@ -157,6 +157,8 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 | **内建安全底线** | ✅ 完成 | `internal/safetygate`，装在 `run.NewConfig` 的 `BeforeToolCall` 基底——**CLI 与 SDK 两种模式同时覆盖**，`--approve` 不可绕过 |
 | **通用事件流出口** | ✅ 已有 | 机器可读的事件流：CLI 侧 `--output-format stream-json`（每个 `AgentEvent` 一行 JSON），SDK 侧 `Session.StreamEvents`。**这就是 aikota 提供的事件接口** |
 | **总线接入（NATS 等）** | ⬜ | **不在 aikota 内做**：由 AImlyForge 侧一个 bridge 消费上面的通用事件流，映射到 `aimly.*` 主题。aikota 不认识 NATS |
+| **ai-guard 策略外挂** | ⬜ | 走 aikota 的 hook 层接 SPT 的策略检查（`check-scope` 等，依赖 SPT 目录结构）|
+| ~~模型网关策略内嵌~~ | ❌ **不做** | 路由策略在 `tools/free-tier-aggregator`（Go 网关）里；aikota 只用 `--base-url` + `--protocol` 接它的标准端点，**零改动**。见 §4.1 |
 
 > ⚠️ **选 bridge 的消费面时要知道的**（2026-09-14 实测）：**SDK 只暴露 14 种事件里的 7 种**——
 > `message_delta` / `message_end` / `thinking_delta` / `tool_execution_{start,update,end}` / `usage`。
@@ -167,8 +169,6 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 > **CLI 侧同理但不同因**：`--output-format stream-json` 10 种事件可用，但 `subagent_progress` 被**刻意排除**（`headless.go` 注释：progress 是 stderr-only by contract，避免污染机器可读的 stdout）。
 >
 > ⇒ **bridge 若建在 SDK 上，看不到子 Agent 和遥测；建在 stream-json 上，能看到遥测但看不到子 Agent 进度。** 两者都需要时，得先补事件面——这是一项独立工作，不是配置问题。
-| **ai-guard 策略外挂** | ⬜ | 走 aikota 的 hook 层接 SPT 的策略检查（`check-scope` 等，依赖 SPT 目录结构）|
-| ~~模型网关策略内嵌~~ | ❌ **不做** | 路由策略在 `tools/free-tier-aggregator`（Go 网关）里；aikota 只用 `--base-url` + `--protocol` 接它的标准端点，**零改动**。见 §4.1 |
 
 ### 4.1 模型网关：为什么不做内嵌（例证 §5.5）
 
