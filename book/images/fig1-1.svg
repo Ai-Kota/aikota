@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1180" height="800" viewBox="0 0 1180 800" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif">
-  <title>pigo Runtime Architecture</title>
-  <desc>pigo high-level runtime architecture: request path from user through CLI, agent loop, provider layer to the LLM gateway; tool path from the loop through the tool executor and trust gate to the local environment; support edges to session store and context compaction; trust and external-network boundaries.</desc>
+  <title>aikota Runtime Architecture</title>
+  <desc>aikota high-level runtime architecture: request path from user through CLI, agent loop, provider layer to the LLM gateway; tool path from the loop through the tool executor and trust gate to the local environment; support edges to session store and context compaction; trust and external-network boundaries.</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -19,7 +19,7 @@
 
   <!-- ===== Boundaries (behind nodes) ===== -->
   <rect x="138" y="58" width="744" height="560" rx="14" ry="14" fill="#fafafa" stroke="#333333" stroke-width="1.4" stroke-dasharray="7 5"/>
-  <text x="156" y="82" font-size="14" font-weight="bold" fill="#333333">pigo 进程 · 本地可信边界 (local, trusted)</text>
+  <text x="156" y="82" font-size="14" font-weight="bold" fill="#333333">aikota 进程 · 本地可信边界 (local, trusted)</text>
 
   <rect x="938" y="225" width="218" height="262" rx="14" ry="14" fill="#f4f4f4" stroke="#8a1f1f" stroke-width="1.4" stroke-dasharray="7 5"/>
   <text x="952" y="248" font-size="13" font-weight="bold" fill="#8a1f1f">外部网络 · 不可信 (untrusted)</text>
@@ -98,7 +98,7 @@
   <g>
     <rect x="225" y="250" width="160" height="60" rx="8" fill="#ffffff" stroke="#111111" stroke-width="1.6"/>
     <text x="305" y="277" text-anchor="middle" font-size="13.5" font-weight="bold" fill="#111111">CLI &amp; Run Assembly</text>
-    <text x="305" y="295" text-anchor="middle" font-size="10" fill="#555555">cmd/pigo</text>
+    <text x="305" y="295" text-anchor="middle" font-size="10" fill="#555555">cmd/aikota</text>
   </g>
   <g>
     <rect x="470" y="250" width="160" height="60" rx="8" fill="#ffffff" stroke="#111111" stroke-width="1.6"/>

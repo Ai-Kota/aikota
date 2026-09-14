@@ -22,7 +22,7 @@
 <rect width="100%" height="100%" fill="#f8fafc" />
 
         <title id="archify-diagram-title">子 Agent：进程隔离下的一次委派</title>
-        <desc id="archify-diagram-description">父进程 spawn pigo --subagent-rpc，stdio 上跑一轮 subagent/run</desc>
+        <desc id="archify-diagram-description">父进程 spawn aikota --subagent-rpc，stdio 上跑一轮 subagent/run</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -163,8 +163,8 @@
           <text data-detail="context" x="170" y="111" class="t-muted" font-size="7" text-anchor="middle">defaultProcessCall</text>
         </g>
 
-        <g id="node-child" data-node-id="child" data-node-label="子进程" tabindex="0" role="button" aria-label="Focus 子进程, pigo --subagent-rpc, Sequence participant" aria-pressed="false" data-node-kind="external" data-node-sublabel="pigo --subagent-rpc" data-node-context="Sequence participant">
-          <title>子进程 · pigo --subagent-rpc · Sequence participant</title>
+        <g id="node-child" data-node-id="child" data-node-label="子进程" tabindex="0" role="button" aria-label="Focus 子进程, aikota --subagent-rpc, Sequence participant" aria-pressed="false" data-node-kind="external" data-node-sublabel="aikota --subagent-rpc" data-node-context="Sequence participant">
+          <title>子进程 · aikota --subagent-rpc · Sequence participant</title>
           <rect x="235" y="72" width="86" height="54" rx="6" class="c-mask"/>
           <rect x="235" y="72" width="86" height="54" rx="6" class="c-external" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(241 78) scale(0.6875)">
@@ -172,7 +172,7 @@
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
           <text data-detail-anchor="" x="278" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">子进程</text>
-          <text data-detail="context" x="278" y="111" class="t-muted" font-size="7" text-anchor="middle">pigo --subagent-rpc</text>
+          <text data-detail="context" x="278" y="111" class="t-muted" font-size="7" text-anchor="middle">aikota --subagent-rpc</text>
         </g>
 
         <g id="node-childloop" data-node-id="childloop" data-node-label="子 Agent 循环" tabindex="0" role="button" aria-label="Focus 子 Agent 循环, RunSubAgentOnce, Sequence participant" aria-pressed="false" data-node-kind="backend" data-node-sublabel="RunSubAgentOnce" data-node-context="Sequence participant">

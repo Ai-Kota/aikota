@@ -4,7 +4,7 @@
       {
         "matcher": "bash",
         "hooks": [
-          { "type": "command", "command": "$PIGO_PROJECT_DIR/examples/hooks/block-rm-rf/hook.sh" }
+          { "type": "command", "command": "$AIKOTA_PROJECT_DIR/examples/hooks/block-rm-rf/hook.sh" }
         ]
       }
     ]
