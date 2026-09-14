@@ -79,6 +79,10 @@ type cliOptions struct {
 	githubWebhookRepo      string
 	resumeID               string
 	continueLast           bool
+	// noSession runs headless without reading or writing the session store
+	// (--no-session), for stateless batch/orchestrated runs that must not
+	// accumulate session files.
+	noSession bool
 	// approve grants the launch directory session-level trust up front (mirrors pi's
 	// --approve/-a): the first-launch trust prompt is skipped and side-effect
 	// tools (bash/write/edit) run without per-call confirmation for this run.
@@ -212,6 +216,7 @@ func main() {
 	flag.BoolVarP(&opts.listSessions, "list-sessions", "l", false, "list stored interactive sessions and exit")
 	flag.StringVarP(&opts.resumeID, "resume", "r", "", "resume the interactive session with this id")
 	flag.BoolVarP(&opts.continueLast, "continue", "c", false, "resume the most recent interactive session")
+	flag.BoolVar(&opts.noSession, "no-session", false, "do not read or write the session store: run stateless and leave no session file behind (mirrors pi --no-session)")
 	flag.BoolVarP(&opts.approve, "approve", "a", false, "trust the working directory for this run: skip the first-launch trust prompt and run side-effect tools without per-call confirmation")
 	flag.BoolVar(&opts.noSkills, "no-skills", false, "disable skill discovery (do not load skills under ~/.agents/skills as /skill-name commands)")
 	flag.BoolVar(&opts.noPromptTemplates, "no-prompt-templates", false, "disable prompt-template discovery (do not load ~/.aikota/{commands,prompts}, .aikota/prompts, config prompts, or --prompt-template); built-in slash commands are unaffected")
@@ -407,6 +412,14 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		return 0
 	}
 
+	// --no-session and --resume/--continue contradict each other: one says "do not
+	// touch the session store", the other says "read a session from it". Reject
+	// the combination rather than silently picking a winner.
+	if opts.noSession && (opts.resumeID != "" || opts.continueLast) {
+		fmt.Fprintln(errOut, "aikota: --no-session cannot be combined with --resume/--continue")
+		return 2
+	}
+
 	// --continue resolves to the most recently updated session id.
 	resumeID := opts.resumeID
 	if opts.continueLast && resumeID == "" {
@@ -529,6 +542,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		APIKey:        opts.apiKey,
 		ThinkingLevel: opts.thinkingLevel,
 		ResumeID:      resumeID,
+		NoSession:     opts.noSession,
 	}, out, errOut)
 }
 

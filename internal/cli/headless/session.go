@@ -95,6 +95,11 @@ type headlessSession struct {
 	// original session's stale values (matching the REPL, repl.go persistTurn).
 	model    string
 	provider string
+	// transient marks a --no-session run: the header is built in memory and
+	// persist is a no-op, so nothing is read from or written to the session
+	// store. The generated id is still emitted (stream-json, hook deps) so
+	// consumers see a session id, it simply never reaches disk.
+	transient bool
 }
 
 // openHeadlessSession resolves the session backing a headless run: it resumes an
@@ -102,12 +107,31 @@ type headlessSession struct {
 // branch leaf) or creates a fresh session header otherwise. It returns the prior
 // messages to seed into the context ahead of the new prompt, plus the session
 // state used to persist the run afterward.
-func openHeadlessSession(resumeID, model, providerName, sysPrompt string) (agentcore.MessageList, headlessSession, error) {
+//
+// When noSession is true the run is transient: no store is opened (so
+// ~/.aikota/sessions is not even created), the header is built in memory, and
+// the caller's persist becomes a no-op. resumeID is ignored in that case — the
+// caller rejects the combination as a usage error, so this only guards against
+// reaching here anyway.
+func openHeadlessSession(resumeID, model, providerName, sysPrompt string, noSession bool) (agentcore.MessageList, headlessSession, error) {
+	now := time.Now().UTC()
+	if noSession {
+		header := session.SessionHeader{
+			ID:           session.NewID(now),
+			CreatedAt:    now,
+			UpdatedAt:    now,
+			Model:        model,
+			Provider:     providerName,
+			SystemPrompt: sysPrompt,
+			Cwd:          headlessCwd(),
+		}
+		return nil, headlessSession{header: header, transient: true, model: model, provider: providerName}, nil
+	}
+
 	store, err := SessionStore()
 	if err != nil {
 		return nil, headlessSession{}, err
 	}
-	now := time.Now().UTC()
 
 	if resumeID != "" {
 		h, entries, err := store.LoadEntries(resumeID)
@@ -161,6 +185,10 @@ func headlessCwd() string {
 // It is a no-op when the run produced nothing new. Errors are returned for the
 // caller to surface; the run's output has already been emitted regardless.
 func (hs *headlessSession) persist(agentCtx *agentcore.AgentContext) error {
+	// A --no-session run never reaches disk, so there is nothing to append.
+	if hs.transient {
+		return nil
+	}
 	// Compaction can rebuild agentCtx.Messages to fewer entries than were on disk
 	// before the run (loop.go maybeAutoCompact replaces the slice). Clamp the
 	// cursor so the tail slice stays in bounds; when the context shrank there is

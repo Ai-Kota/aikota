@@ -6,6 +6,8 @@ package headless
 // without spawning a provider.
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
@@ -25,7 +27,7 @@ func textAssistant(s string) agentcore.AssistantMessage {
 func TestOpenHeadlessSessionFresh(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", t.TempDir())
 
-	prior, hs, err := openHeadlessSession("", "faux-model", "faux", "sys prompt")
+	prior, hs, err := openHeadlessSession("", "faux-model", "faux", "sys prompt", false)
 	if err != nil {
 		t.Fatalf("openHeadlessSession fresh: %v", err)
 	}
@@ -62,7 +64,7 @@ func TestOpenHeadlessSessionResume(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", t.TempDir())
 
 	// First run: create and persist a session.
-	_, hs1, err := openHeadlessSession("", "faux-model", "faux", "sys")
+	_, hs1, err := openHeadlessSession("", "faux-model", "faux", "sys", false)
 	if err != nil {
 		t.Fatalf("first openHeadlessSession: %v", err)
 	}
@@ -73,7 +75,7 @@ func TestOpenHeadlessSessionResume(t *testing.T) {
 	sessID := hs1.header.ID
 
 	// Second run: resume the session id.
-	prior, hs2, err := openHeadlessSession(sessID, "faux-model", "faux", "sys")
+	prior, hs2, err := openHeadlessSession(sessID, "faux-model", "faux", "sys", false)
 	if err != nil {
 		t.Fatalf("resume openHeadlessSession: %v", err)
 	}
@@ -105,7 +107,7 @@ func TestOpenHeadlessSessionResume(t *testing.T) {
 // the run produced nothing new past what was already persisted.
 func TestHeadlessPersistNoop(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", t.TempDir())
-	_, hs, err := openHeadlessSession("", "m", "p", "s")
+	_, hs, err := openHeadlessSession("", "m", "p", "s", false)
 	if err != nil {
 		t.Fatalf("openHeadlessSession: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestHeadlessPersistNoop(t *testing.T) {
 // the tail slice stays in bounds rather than panicking.
 func TestHeadlessPersistCompactionShrink(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", t.TempDir())
-	_, hs, err := openHeadlessSession("", "m", "p", "s")
+	_, hs, err := openHeadlessSession("", "m", "p", "s", false)
 	if err != nil {
 		t.Fatalf("openHeadlessSession: %v", err)
 	}
@@ -152,5 +154,43 @@ func TestHeadlessPersistCompactionShrink(t *testing.T) {
 	}
 	if hs.persisted != 2 {
 		t.Errorf("cursor after clamp = %d, want 2", hs.persisted)
+	}
+}
+
+// TestOpenHeadlessSessionNoSession verifies a --no-session run is transient: it
+// still carries a session id (so stream-json emits one and hook deps have one)
+// but opens no store, creates no sessions directory, and writes nothing when
+// persist is called after the run.
+func TestOpenHeadlessSessionNoSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("AIKOTA_HOME", home)
+
+	prior, hs, err := openHeadlessSession("", "faux-model", "faux", "sys prompt", true)
+	if err != nil {
+		t.Fatalf("openHeadlessSession no-session: %v", err)
+	}
+	if len(prior) != 0 {
+		t.Errorf("transient session must have no prior messages, got %d", len(prior))
+	}
+	if hs.header.ID == "" {
+		t.Fatal("transient session must still carry an id for stream-json/hook deps")
+	}
+	if !hs.transient {
+		t.Fatal("a --no-session run must be marked transient")
+	}
+	if hs.store != nil {
+		t.Fatal("a --no-session run must not open a session store")
+	}
+
+	// Simulate a completed run and persist: it must be a no-op.
+	agentCtx := &agentcore.AgentContext{Messages: agentcore.MessageList{textUser("1+1=?"), textAssistant("2")}}
+	if err := hs.persist(agentCtx); err != nil {
+		t.Fatalf("persist on a transient session must be a no-op, got %v", err)
+	}
+
+	// Nothing may have reached disk — not even the sessions directory.
+	if _, err := os.Stat(filepath.Join(home, "sessions")); !os.IsNotExist(err) {
+		t.Fatalf("a --no-session run created %s (stat err = %v), want nothing on disk",
+			filepath.Join(home, "sessions"), err)
 	}
 }
