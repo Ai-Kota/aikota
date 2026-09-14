@@ -16,30 +16,24 @@ import (
 // laid out beside it. It is seeded once by withSession so it scrolls up as the
 // conversation grows, like a shell's login banner.
 
-// logoLines is the aikota braille-art logo, one string per row.
+// logoLines is the aikota braille-art logo, one string per row. Each braille
+// cell is a 2x4 dot grid, so this spells "aikota" across 36x8 dots: a five-dot
+// wide lowercase face on a shared x-height, one dot of letter spacing.
+//
+// It replaces the wordmark art this project inherited from its upstream, which
+// was drawn for the previous name and could not be relabelled by substitution —
+// the artwork had to be redrawn. Regenerate from the same face if the name ever
+// changes again.
 var logoLines = []string{
-	"⣿⣿⣿⣿⡿⠟⠛⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠙⣿",
-	"⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼",
-	"⣿⠋⠀⠀⠀⠀⠀⣀⡀⠀⠀⠀⠀⢠⣤⣤⣤⠀⠀⠀⠀⠀⣤⣤⣤⣤⣤⣤⣾⣿",
-	"⣧⠀⠀⠀⠀⣠⣾⣿⡇⠀⠀⠀⠀⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿",
-	"⣿⣶⣤⣤⣾⣿⣿⣿⡇⠀⠀⠀⠀⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿",
-	"⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⢀⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿",
-	"⣿⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⢸⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿",
-	"⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀⠀⠀⣾⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿",
-	"⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⣿⡿⠛⠛⢿⣿",
-	"⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⣿⣿⡟⠀⠀⠀⠀⢻",
-	"⣿⣿⣿⣿⡟⠁⠀⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠛⠛⠁⠀⠀⠀⠀⣾",
-	"⣿⣿⣿⡏⠀⠀⠀⠀⠀⣴⣿⣿⣿⣿⣿⣿⣿⣧⡀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿",
-	"⣿⣿⣿⣿⣄⣀⣀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣄⣀⣀⣀⣀⣠⣴⣿⣿⣿",
+	"⠠⠤⡀⠠⡅ ⡇⡠ ⡠⠤⡀⢴⠤ ⠠⠤⡀",
+	"⠪⠭⠇⠠⠧ ⠏⠢ ⠣⠤⠃⠘⠤⠂⠪⠭⠇",
 }
 
-// logoColors is the top-to-bottom rainbow ramp painted across the logo rows
-// (ANSI 256-color cube): red → orange → yellow → green → cyan → blue.
+// logoColors is the top-to-bottom gradient painted across the logo rows
+// (ANSI 256-color cube): amber into cyan.
 var logoColors = []string{
-	"196", "202", "208", "214", "220", "190", "118",
-	"46", "48", "50", "45", "39", "33",
+	"214", "45",
 }
-
 // renderBanner paints the logo gradient and joins it with a config panel showing
 // the session basics. Its only I/O is a single cheap read of the local
 // update-check cache (no network — CachedLatest); it never panics, so it is safe
