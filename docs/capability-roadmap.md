@@ -158,7 +158,23 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 | **通用事件流出口** | ✅ 已有 | 机器可读的事件流：CLI 侧 `--output-format stream-json`（每个 `AgentEvent` 一行 JSON），SDK 侧 `Session.StreamEvents`。**这就是 aikota 提供的事件接口** |
 | **总线接入（NATS 等）** | ⬜ | **不在 aikota 内做**：由 AImlyForge 侧一个 bridge 消费上面的通用事件流，映射到 `aimly.*` 主题。aikota 不认识 NATS |
 | **ai-guard 策略外挂** | ⬜ | 走 aikota 的 hook 层接 SPT 的策略检查（`check-scope` 等，依赖 SPT 目录结构）|
-| **FreeLLMAPI 策略** | ⬜ | 需先判定归属：路由/兜底是**通用能力**（进 `internal/provider`），还是**你的基础设施策略**（留外面）——见 §5.5 |
+| ~~模型网关策略内嵌~~ | ❌ **不做** | 路由策略在 `tools/free-tier-aggregator`（Go 网关）里；aikota 只用 `--base-url` + `--protocol` 接它的标准端点，**零改动**。见 §4.1 |
+
+### 4.1 模型网关：为什么不做内嵌（例证 §5.5）
+
+`tools/free-tier-aggregator`（"Free Tier Proxy"）是你的 Go 路由网关，暴露**标准端点**：
+
+| 端点 | 协议 | aikota 接法 |
+|---|---|---|
+| `/v1/chat/completions` | OpenAI 兼容 | `--base-url http://<网关>/v1 --protocol openai` |
+| `/v1/messages` | Anthropic Messages | `--base-url http://<网关>/v1 --protocol anthropic` |
+| `/v1/models` · `/health` | — | 用于发现与探活 |
+
+aikota 的拼接方式（`baseURL` + `/chat/completions` 或 `/messages`）**与网关路径正好对齐**，所以两边都不需要改。
+
+**免费优先 / 多 key 轮换 / 冷却 / 兜底链**这些策略属于**网关**（你的基础设施），不属于 aikota（通用产品）。这是 §5.5 判据的正例：把网关那行代码给一个不用它的用户，毫无意义。
+
+> ⚠️ **端口冲突（实测）**：网关 README 写 `:8462`，但该端口当前被 `master-loop.exe` 占用。用之前需改端口或调整 master-loop。
 
 **这一层是 aikota 与你的体系对接的地方。** 内建安全底线已落地；事件流出口已存在；其余待做。
 
