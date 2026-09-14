@@ -25,14 +25,16 @@ import (
 // the artwork had to be redrawn. Regenerate from the same face if the name ever
 // changes again.
 var logoLines = []string{
-	"⠠⠤⡀⠠⡅ ⡇⡠ ⡠⠤⡀⢴⠤ ⠠⠤⡀",
-	"⠪⠭⠇⠠⠧ ⠏⠢ ⠣⠤⠃⠘⠤⠂⠪⠭⠇",
+	"        ⠛   ⣿            ⣤",
+	" ⠛⠛⠛⣤  ⠛⣿   ⣿ ⣤⠛  ⣤⠛⠛⠛⣤ ⠛⣿⠛⠛   ⠛⠛⠛⣤",
+	"⣤⠛⠛⠛⣿   ⣿   ⣿⠛⣤   ⣿   ⣿  ⣿  ⣤ ⣤⠛⠛⠛⣿",
+	" ⠛⠛⠛⠛  ⠛⠛⠛  ⠛  ⠛   ⠛⠛⠛    ⠛⠛   ⠛⠛⠛⠛",
 }
 
 // logoColors is the top-to-bottom gradient painted across the logo rows
 // (ANSI 256-color cube): amber into cyan.
 var logoColors = []string{
-	"214", "45",
+	"214", "208", "44", "39",
 }
 // renderBanner paints the logo gradient and joins it with a config panel showing
 // the session basics. Its only I/O is a single cheap read of the local
