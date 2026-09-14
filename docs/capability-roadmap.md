@@ -215,6 +215,38 @@ MCP 客户端 · plan mode · worktree 隔离 · notebook 编辑 · 多 agent te
 
    > 这条是实践中踩出来的：曾计划把 NATS 客户端直接加进 aikota（`go get nats.go` + 在事件发射点硬编发布）。依赖已撤。**症状**：需求描述里出现"**原生**"两个字时，先停一下问是哪一层的"原生"。
 
+   ### 5.5.1 已判定案例（三次独立判断，同一结论）
+
+   | # | 东西 | 性质 | 曾被考虑的合并方式 | 判定 | 正确形态 |
+   |---|---|---|---|---|---|
+   | 1 | **ai-guard** | 你的 AI 约束工具（SPT）| 内置进 aikota 当闸门 | ❌ 不内置 | 走 aikota 的 hook 层外挂；aikota 自己只做**通用安全底线** |
+   | 2 | **NATS** | 你的消息总线 | `go get nats.go` + 事件发射点硬编发布 | ❌ 不硬编 | aikota 提供**通用事件流**（已有 `stream-json` / `StreamEvents`），AImlyForge 侧写 bridge 消费 |
+   | 3 | **free-tier-aggregator** | 你的模型路由网关 | 合并进 aikota 作为一个模块 | ❌ 不合并 | **标准协议对接，零代码**（`--base-url` + `--protocol`）|
+
+**三例的共同结构**：
+
+- 都是**只有你才有的基础设施**——别人没有 40+ 免费 key、没有 SPT 目录结构、没有你的总线
+- 都对 aikota 有"要用上"的合理诉求
+- 三次独立判断都指向同一结论：**aikota 只提供通用机制，耦合留在外面**
+
+### 5.5.2 下次遇到"要不要把 X 合进 aikota"时的判定程序
+
+```
+1. 把 X 的那行代码给一个【不用你基础设施】的用户 —— 还有意义吗？
+     没有 → 停止。它是你的基础设施，不进产品。
+     有   → 进入第 2 步
+
+2. X 和 aikota 的【部署形态 / 生命周期】一样吗？
+     不一样（如：常驻服务 vs 一次性 CLI）→ 停止。不是模块关系。
+     一样 → 进入第 3 步
+
+3. X 和 aikota 的【演化节奏】一样吗？
+     不一样（跟上游 vs 跟你的流程/配置）→ 停止。各自独立演进，用协议对接。
+     一样 → 可以考虑合并。
+```
+
+> **⚠️ 特别警告**：aikota 是 pigo 的 fork。任何合并都会**加深与上游的分叉**（§5.1 薄 diff 纪律）。合并不是免费的——它按时间复利计息。
+
 ---
 
 ## 附录：证据来源
@@ -225,5 +257,9 @@ MCP 客户端 · plan mode · worktree 隔离 · notebook 编辑 · 多 agent te
 | openclaude 许可约束 | 直接读取该仓库 `LICENSE` 与 `README.md` §"Claude" |
 | aikota 工具与能力现状 | `internal/cli/run/run.go` 的 `BuiltinTools`；`internal/` 各包实测 |
 | 第 1 层挂载点 | `internal/agenttool/tool_executor.go`（`BeforeToolCall`）、`internal/runtime`（事件发射）、`internal/provider`（路由） |
+| ai-guard 的性质与协议 | `SPT/docs/architecture/modules/ai-guard.md`；子命令实测（`ai-guard --help`）；`scripts/hook.sh` 的 exit 0/2 语义注释 |
+| 网关暴露的标准端点 | `tools/free-tier-aggregator/README.md` §API 端点；`docs/decisions/ADR-003-positioning.md` |
+| 网关未运行 + 端口冲突 | 实测：`tasklist` 无 `free-tier-proxy`；`netstat` 显示 `:8462` 由 `master-loop.exe` 持有 |
+| NATS 主题与信封约定 | `deploy/nats/NEURAL_BACKBONE.md` §4；`tools/_shared/natsutil` 的 `EnvelopeMeta` |
 
 > 本文的"片面"判断基于上述实测，非对任何项目整体优劣的评价。
