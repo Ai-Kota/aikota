@@ -156,7 +156,7 @@ pigo 已经具备一套持久记忆体系（`internal/memory/`）：按 scope（
 - 复用子进程 subagent 机制（`internal/runtime/subagent.go`、`pigo --subagent-rpc` over stdio JSON-RPC）与嵌套守卫（dream Agent 不应再 spawn 子 Agent）。
 - session JSONL 读取需定位当前项目相关会话文件（参考现有 session store 路径约定）。
 - dream 状态文件与记忆根解析需与现有 `memoryRoot` 解析保持一致（见 `store.go` 注释）。
-- 到期判定与启动触发挂载在 CLI run assembly（`cmd/pigo`）会话初始化路径，注意不拖慢冷启动。
+- 到期判定与启动触发挂载在 CLI run assembly（`cmd/aikota`）会话初始化路径，注意不拖慢冷启动。
 - 并发锁：可用记忆根下的 lockfile 或状态文件中的 `running` 标记 + PID/时间戳，避免死锁遗留。
 
 ## Success Metrics

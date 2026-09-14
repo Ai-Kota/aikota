@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // This file implements the scrolling transcript region of the full-screen TUI

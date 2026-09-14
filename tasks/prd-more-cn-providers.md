@@ -56,7 +56,7 @@ pigo 通过 `internal/provider/registry.go` 的 provider 注册表管理所有�
 **Acceptance Criteria:**
 - [ ] 注册表测试断言四个新 Provider 的 Name / EnvVars / DefaultBaseURL / Protocol / AuthScheme 与 US-001 一致
 - [ ] 解析测试断言 `--provider <name>` 与预置 id 两条路径都路由到正确 provider 且 base_url 覆盖优先级正确
-- [ ] `go test ./internal/provider/... ./cmd/pigo/...` 通过
+- [ ] `go test ./internal/provider/... ./cmd/aikota/...` 通过
 
 ### US-005: 更新 README 文档
 **Description:** As a 新用户, I want README 列出新增的国内 Provider, so that 我知道如何配置它们的 Key 与 base URL。

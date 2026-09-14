@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // recordingTool is a fake AgentTool that records whether Execute ran and echoes

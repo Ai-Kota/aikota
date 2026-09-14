@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // A recorded Anthropic Messages API SSE stream covering a text block, a

@@ -37,7 +37,7 @@
 **Acceptance Criteria:**
 - [ ] 在 `book/README.md`（或 `book/outline.md`）给出「内容速览」表：章号 / 主题 / 一句话核心 / 对应源码包。
 - [ ] 10 章覆盖：CLI 装配与运行架构、agentcore 抽象、两层 Agent 循环、Provider 层与传输、工具系统、上下文压缩、会话持久化、项目信任与安全、子 Agent 编排、可扩展性生态（Skills/Plugins/包管理）。
-- [ ] 每章列出对应的 `internal/*` 或 `cmd/pigo` 包/关键文件，可与仓库现有代码逐一对上。
+- [ ] 每章列出对应的 `internal/*` 或 `cmd/aikota` 包/关键文件，可与仓库现有代码逐一对上。
 - [ ] 引言与后记在大纲中列明。
 
 ### US-003：撰写引言 introduction.md
@@ -55,7 +55,7 @@
 
 **Acceptance Criteria:**
 - [ ] `book/chapter1.md`：H1 章标题，≥4 个 H2 节，含若干 H3 小节。
-- [ ] 拆解 `cmd/pigo` 的运行装配：`setupAgentEnv`、`newRunConfig`、REPL 与 headless（`-p` / stream-json）两条驱动路径，引用真实文件与符号（形如 `cmd/pigo/run.go`）。
+- [ ] 拆解 `cmd/aikota` 的运行装配：`setupAgentEnv`、`newRunConfig`、REPL 与 headless（`-p` / stream-json）两条驱动路径，引用真实文件与符号（形如 `cmd/aikota/run.go`）。
 - [ ] 嵌入运行架构图（复用 `docs/pigo-runtime.*` 转换的 SVG，见 US-005）。
 - [ ] 含至少 1 个「实验 N-M ★」框（例如：用 `-p` 跑一次无头对话并观察 stream-json 首个事件的 session_id）。
 - [ ] 章末含「本章小结」与「思考题」两节，对齐参考书体例。

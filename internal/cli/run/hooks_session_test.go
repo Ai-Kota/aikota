@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // sessionDispatcher builds a Dispatcher for a single SessionStart matcher.

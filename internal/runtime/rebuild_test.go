@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/compaction"
 )
 
 // textUser builds a user message carrying body, used to seed a rebuildable history.

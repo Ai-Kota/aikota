@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/hooks"
 )
 
 // ptr is a helper for building pointer-valued config-layer fields in tests.
@@ -125,23 +125,23 @@ func TestLoadConfigLayerMissingAndMalformed(t *testing.T) {
 // leave fields nil.
 func TestEnvConfigLayer(t *testing.T) {
 	env := map[string]string{
-		"PIGO_MODEL":               "env/m",
-		"PIGO_THINKING_LEVEL":      "high",
-		"PIGO_TOOL_EXECUTION_MODE": "sequential",
+		"AIKOTA_MODEL":               "env/m",
+		"AIKOTA_THINKING_LEVEL":      "high",
+		"AIKOTA_TOOL_EXECUTION_MODE": "sequential",
 	}
 	layer := EnvConfigLayer(func(k string) string { return env[k] })
 	if layer.Model == nil || *layer.Model != "env/m" {
-		t.Errorf("PIGO_MODEL not captured: %+v", layer.Model)
+		t.Errorf("AIKOTA_MODEL not captured: %+v", layer.Model)
 	}
 	if layer.ThinkingLevel == nil || *layer.ThinkingLevel != "high" {
-		t.Errorf("PIGO_THINKING_LEVEL not captured: %+v", layer.ThinkingLevel)
+		t.Errorf("AIKOTA_THINKING_LEVEL not captured: %+v", layer.ThinkingLevel)
 	}
 	if layer.ToolExecutionMode == nil || *layer.ToolExecutionMode != "sequential" {
-		t.Errorf("PIGO_TOOL_EXECUTION_MODE not captured: %+v", layer.ToolExecutionMode)
+		t.Errorf("AIKOTA_TOOL_EXECUTION_MODE not captured: %+v", layer.ToolExecutionMode)
 	}
 	// Unset var → nil field.
 	if layer.Provider != nil {
-		t.Errorf("unset PIGO_PROVIDER should leave Provider nil, got %v", *layer.Provider)
+		t.Errorf("unset AIKOTA_PROVIDER should leave Provider nil, got %v", *layer.Provider)
 	}
 }
 

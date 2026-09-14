@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
 )
 
 func TestDefaultThemeRenders(t *testing.T) {

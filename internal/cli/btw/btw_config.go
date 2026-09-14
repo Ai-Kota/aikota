@@ -3,7 +3,7 @@
 // and/or reasoning effort than the main session, without touching the main
 // session's settings (mirrors pi-btw's pi-btw.json).
 //
-// The config lives at $PIGO_HOME/btw.json (or ~/.pigo/btw.json). It is read
+// The config lives at $AIKOTA_HOME/btw.json (or ~/.aikota/btw.json). It is read
 // fresh on every /btw invocation, so editing it takes effect on the next call
 // with no restart. A missing file, an empty object, or an absent field all mean
 // "inherit the session default" silently — only a malformed file or an
@@ -19,14 +19,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
-// btwConfig is the on-disk shape of ~/.pigo/btw.json. Both fields are optional;
+// btwConfig is the on-disk shape of ~/.aikota/btw.json. Both fields are optional;
 // an absent field (nil / empty) inherits the session default. Pointers/empty
 // strings distinguish "not set" from a real value so a partial file still falls
 // back per-field.

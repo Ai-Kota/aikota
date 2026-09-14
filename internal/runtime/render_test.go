@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // emitStream builds a LoopEventStream, runs emit on a producer goroutine to

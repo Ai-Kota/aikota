@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/agent"
+	"github.com/Ai-Kota/aikota/agent"
 )
 
 // hermetic points provider/skill/plugin discovery at throwaway dirs and supplies
@@ -15,7 +15,7 @@ import (
 func hermetic(t *testing.T) {
 	t.Helper()
 	t.Setenv("OPENROUTER_API_KEY", "test-key")
-	t.Setenv("PIGO_HOME", t.TempDir())
+	t.Setenv("AIKOTA_HOME", t.TempDir())
 }
 
 func contains(set []string, name string) bool {

@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // BashOutputTool reads the output a background job has produced since the last

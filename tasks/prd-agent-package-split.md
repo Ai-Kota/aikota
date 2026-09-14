@@ -113,7 +113,7 @@ Providers            Tools ← Sandbox
 **Description:** 作为开发者，我需要把 `cmd/`、`internal/tui`、`internal/session` 中对旧 `agent.*` 的引用改成对新子包符号的引用（破坏性改动，不留门面）。
 
 **Acceptance Criteria:**
-- [ ] `cmd/pigo/main.go`、`cmd/pigo/interactive.go`、`internal/tui/model.go`、`internal/tui/state.go`、`internal/session/session.go` 中的 `agent.XXX` 引用全部改为对应子包（`agentcore.` / `provider.` / `agenttool.` / `runtime.`）
+- [ ] `cmd/aikota/main.go`、`cmd/aikota/interactive.go`、`internal/tui/model.go`、`internal/tui/state.go`、`internal/session/session.go` 中的 `agent.XXX` 引用全部改为对应子包（`agentcore.` / `provider.` / `agenttool.` / `runtime.`）
 - [ ] 约 48 个原 `agent.*` 导出符号引用点全部迁移正确，无残留对 `internal/agent` 的 import
 - [ ] `internal/tui/state_test.go` 等外部测试的引用同步更新
 - [ ] `go build ./... && go vet ./... && go test ./...` 全绿

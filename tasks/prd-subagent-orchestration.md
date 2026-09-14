@@ -49,7 +49,7 @@ pigo 目前虽然内部有完整的子 agent 执行机制（`internal/runtime/su
 **Acceptance Criteria:**
 - [ ] task 工具共享一个信号量，默认最大并发 4
 - [ ] 超出上限的 task 调用阻塞排队，直到有空位，不报错、不丢弃
-- [ ] 上限可通过配置/环境变量覆盖（如 `PIGO_MAX_SUBAGENTS`）
+- [ ] 上限可通过配置/环境变量覆盖（如 `AIKOTA_MAX_SUBAGENTS`）
 - [ ] 单元测试验证：派发 N>上限 个 task，任一时刻运行中的不超过上限
 - [ ] `go test ./...` 通过
 

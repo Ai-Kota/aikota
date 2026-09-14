@@ -2,7 +2,7 @@
 // both the interactive REPL and the headless driver need — resolving the
 // provider, building the tool set rooted at the working directory, discovering
 // skills and plugins, and constructing the loop RunConfig. Pulling it out of
-// cmd/pigo lets the subpackages assemble a run through one exported API instead
+// cmd/aikota lets the subpackages assemble a run through one exported API instead
 // of duplicating the wiring.
 package run
 
@@ -13,15 +13,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/builtinskills"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/memory"
-	"github.com/smallnest/pigo/internal/plugin"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/trust"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/builtinskills"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/plugin"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/trust"
 )
 
 // Env is the environment every run shares: the working directory, the tool set
@@ -93,7 +93,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 	var memStore *memory.Store
 	if !noTools {
 		if store, err := OpenMemoryStore(memEnabled); err != nil {
-			fmt.Fprintf(os.Stderr, "pigo: memory disabled: %v\n", err)
+			fmt.Fprintf(os.Stderr, "aikota: memory disabled: %v\n", err)
 		} else if store != nil {
 			memStore = store
 			tools = append(tools, &agenttool.MemorySearchTool{Store: store})
@@ -145,7 +145,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 			tools = append(tools, m.Tools()...)
 			mgr = m
 		} else {
-			fmt.Fprintf(os.Stderr, "pigo: plugin discovery failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "aikota: plugin discovery failed: %v\n", err)
 		}
 	}
 	// Enforce the --allowed-tools/--disallowed-tools boundary now that the set is
@@ -160,21 +160,21 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 	}
 	tools = ApplyToolPolicy(tools, policy)
 	if len(tools) == 0 && !noTools && !policy.IsZero() {
-		fmt.Fprintln(os.Stderr, "pigo: warning: the tool policy removed every tool; the model will run without tools")
+		fmt.Fprintln(os.Stderr, "aikota: warning: the tool policy removed every tool; the model will run without tools")
 	}
 	// --no-tools already disables everything, so a tool policy alongside it has
 	// no effect — and because the set is empty, ValidateToolPolicy above skipped
 	// name validation, meaning a typo here would otherwise pass unnoticed. Say so
 	// rather than letting the user believe a boundary is in force.
 	if noTools && !policy.IsZero() {
-		fmt.Fprintln(os.Stderr, "pigo: warning: --no-tools disables all tools; --allowed-tools/--disallowed-tools are ignored (and unvalidated)")
+		fmt.Fprintln(os.Stderr, "aikota: warning: --no-tools disables all tools; --allowed-tools/--disallowed-tools are ignored (and unvalidated)")
 	}
 	// Load skills once (shared between prompt injection and /skill-name
 	// registration). A partial parse error still yields the skills that DID load,
 	// so one malformed file is a non-fatal warning rather than a hard failure.
 	skills, err := LoadSkills(noSkills)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "pigo: skills: %v\n", err)
+		fmt.Fprintf(os.Stderr, "aikota: skills: %v\n", err)
 	}
 	// The model can only load a skill's body when the read tool is present, so
 	// advertise skills in the prompt only then (mirrors pi's selectedTools check).
@@ -295,7 +295,7 @@ func BuiltinToolsExcept(cwd string, disabled bool, except ...string) []agentcore
 
 // ReadableExtraRoots returns trusted directories the file tools may reach beyond
 // the workspace root. The skills directory is included so the model can load the
-// absolute SKILL.md paths pigo advertises in the system prompt, and author or
+// absolute SKILL.md paths aikota advertises in the system prompt, and author or
 // update skills there (they otherwise resolve outside the workspace and are
 // rejected). An empty skills dir is dropped, so this stays a no-op when the home
 // directory cannot be resolved.
@@ -403,18 +403,18 @@ func BashJobStoreFromTools(tools []agentcore.AgentTool) *agenttool.BashJobStore 
 	return nil
 }
 
-// MemoryDir returns the persistent memory root directory: $PIGO_HOME/memory, or
-// ~/.pigo/memory by default (a single global store so cross-project "global"
-// memories are searchable, mirroring the session store's ~/.pigo base). It
+// MemoryDir returns the persistent memory root directory: $AIKOTA_HOME/memory, or
+// ~/.aikota/memory by default (a single global store so cross-project "global"
+// memories are searchable, mirroring the session store's ~/.aikota base). It
 // returns "" when the home directory cannot be resolved and no override is set.
 func MemoryDir() string {
-	dir := os.Getenv("PIGO_HOME")
+	dir := os.Getenv("AIKOTA_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return ""
 		}
-		dir = filepath.Join(home, ".pigo")
+		dir = filepath.Join(home, ".aikota")
 	}
 	return filepath.Join(dir, "memory")
 }
@@ -438,10 +438,10 @@ func OpenMemoryStore(memEnabled bool) (*memory.Store, error) {
 }
 
 // SkillsDir returns the directory skills are loaded from. It defaults to
-// ~/.agents/skills, overridable via PIGO_SKILLS_DIR. An empty string is returned
+// ~/.agents/skills, overridable via AIKOTA_SKILLS_DIR. An empty string is returned
 // when the home directory cannot be resolved and no override is set.
 func SkillsDir() string {
-	if dir := os.Getenv("PIGO_SKILLS_DIR"); dir != "" {
+	if dir := os.Getenv("AIKOTA_SKILLS_DIR"); dir != "" {
 		return dir
 	}
 	home, err := os.UserHomeDir()
@@ -459,7 +459,7 @@ func LoadSkills(noSkills bool) ([]*runtime.Skill, error) {
 		return nil, nil
 	}
 	var blog io.Writer
-	if os.Getenv("PIGO_DEBUG") != "" {
+	if os.Getenv("AIKOTA_DEBUG") != "" {
 		blog = os.Stderr
 	}
 	builtinskills.Bootstrap(ConfigDir(), SkillsDir(), blog)
@@ -471,41 +471,41 @@ func LoadSkills(noSkills bool) ([]*runtime.Skill, error) {
 }
 
 // PluginsDir returns the directory external plugins are discovered from:
-// $PIGO_HOME/plugins, or ~/.pigo/plugins by default. An empty string is returned
+// $AIKOTA_HOME/plugins, or ~/.aikota/plugins by default. An empty string is returned
 // when the home directory cannot be resolved and no override is set (Discover
 // then treats it as "no plugins").
 func PluginsDir() string {
-	dir := os.Getenv("PIGO_HOME")
+	dir := os.Getenv("AIKOTA_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return ""
 		}
-		dir = filepath.Join(home, ".pigo")
+		dir = filepath.Join(home, ".aikota")
 	}
 	return filepath.Join(dir, "plugins")
 }
 
-// ConfigDir returns the directory pigo reads its global config layer from:
-// $PIGO_HOME, or ~/.pigo by default. An empty string is returned when the home
+// ConfigDir returns the directory aikota reads its global config layer from:
+// $AIKOTA_HOME, or ~/.aikota by default. An empty string is returned when the home
 // directory cannot be resolved and no override is set (the caller then treats
 // the global layer as absent).
 func ConfigDir() string {
-	dir := os.Getenv("PIGO_HOME")
+	dir := os.Getenv("AIKOTA_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return ""
 		}
-		dir = filepath.Join(home, ".pigo")
+		dir = filepath.Join(home, ".aikota")
 	}
 	return dir
 }
 
 // ResolveThinkingLevel resolves the effective reasoning-effort level through the
 // layered config chain (US-023): default < global < project < env < CLI flag.
-// The global layer is $PIGO_HOME/config.json (or ~/.pigo/config.json); the
-// project layer is ./.pigo/config.json in the working directory. A malformed
+// The global layer is $AIKOTA_HOME/config.json (or ~/.aikota/config.json); the
+// project layer is ./.aikota/config.json in the working directory. A malformed
 // layer file or an invalid resolved value is a hard error, surfaced to the
 // caller for exit-code mapping. cliLevel is the raw --thinking-level flag ("" =
 // unset, so lower layers show through).
@@ -520,7 +520,7 @@ func ResolveThinkingLevel(cliLevel string) (agentcore.ThinkingLevel, error) {
 		}
 		layers = append(layers, global)
 	}
-	project, err := runtime.LoadConfigLayer(filepath.Join(".pigo", "config.json"))
+	project, err := runtime.LoadConfigLayer(filepath.Join(".aikota", "config.json"))
 	if err != nil {
 		return "", err
 	}
@@ -543,7 +543,7 @@ func ResolveThinkingLevel(cliLevel string) (agentcore.ThinkingLevel, error) {
 
 // ResolveHookSet resolves the effective hook set through the same layered config
 // chain as ResolveThinkingLevel (default < global < project < env), with one
-// difference required by FR-14: the project layer (./.pigo/config.json under
+// difference required by FR-14: the project layer (./.aikota/config.json under
 // cwd) is only merged when the directory is trusted. An untrusted directory
 // therefore contributes no hooks, so a checked-out repo cannot run arbitrary
 // commands until the user trusts it. A malformed layer file is a hard error,
@@ -561,7 +561,7 @@ func ResolveHookSet(cwd string, trusted bool) (hooks.HookSet, error) {
 		layers = append(layers, global)
 	}
 	if trusted {
-		project, err := runtime.LoadConfigLayer(filepath.Join(cwd, ".pigo", "config.json"))
+		project, err := runtime.LoadConfigLayer(filepath.Join(cwd, ".aikota", "config.json"))
 		if err != nil {
 			return nil, err
 		}
@@ -578,7 +578,7 @@ func ResolveHookSet(cwd string, trusted bool) (hooks.HookSet, error) {
 }
 
 // Trusted reports whether cwd is a trusted directory per the shared trust store
-// ($PIGO_HOME/trust.json). It is the trust gate for the non-interactive drivers
+// ($AIKOTA_HOME/trust.json). It is the trust gate for the non-interactive drivers
 // (headless / TUI / sub-agent) that have no live trust.Manager to consult, so
 // ResolveHookSet can honor FR-14 uniformly. A missing or unreadable store is
 // treated as untrusted (fail closed): a directory only runs project-layer hooks

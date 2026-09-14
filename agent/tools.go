@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // ToolExecutionMode selects how a custom tool is scheduled relative to other

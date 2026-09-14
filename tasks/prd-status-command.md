@@ -192,7 +192,7 @@ safe to run.
   `replDeps` access (trust, `agentCtx`, creds, slash registry, retained telemetry
   holder) without widening `registerLiveCommands`'s signature.
 - **Output style:** Reuse `colorize`/`colorEnabled` and the existing ANSI codes from
-  `cmd/pigo/color.go`; match the `/help` aesthetic (bold section headers, dim labels,
+  `cmd/aikota/color.go`; match the `/help` aesthetic (bold section headers, dim labels,
   default values). Render as aligned plain-text sections, not an external table library.
 - **Data reuse:** Reuse `agentcore.TelemetryEvent` / `ToolTiming` as the retained data
   types; add only a small holder struct (last snapshot + cumulative fields), not new

@@ -34,7 +34,7 @@ pigo 目前的交互建立在一个**行式 REPL**（`internal/cli/repl`）之�
 
 **Acceptance Criteria:**
 - [ ] 新增 `internal/cli/tui` 包，引入 `github.com/charmbracelet/bubbletea` 依赖，定义实现 `tea.Model` 的根 `Model`（`Init/Update/View`）
-- [ ] `dispatch`（`cmd/pigo/main.go`）在「无 prompt + stdout 为 TTY + 未指定 `--no-tui`」时启动 TUI；否则走行式 REPL
+- [ ] `dispatch`（`cmd/aikota/main.go`）在「无 prompt + stdout 为 TTY + 未指定 `--no-tui`」时启动 TUI；否则走行式 REPL
 - [ ] 新增 `--no-tui` 布尔 flag，置位时强制行式 REPL
 - [ ] 非 TTY（管道/CI）自动 fallback 到现有行式 REPL 或既有 no-prompt 错误路径，退出码不变
 - [ ] TUI 启动后显示空壳（状态栏占位 + 空 transcript + 空输入框），`Ctrl+C`/`Ctrl+D` 可正常退出并恢复终端
@@ -125,7 +125,7 @@ pigo 目前的交互建立在一个**行式 REPL**（`internal/cli/repl`）之�
 **Acceptance Criteria:**
 - [ ] `pigo --resume <id>` 与 `pigo --continue` 在 TUI 模式下加载对应会话历史并渲染进 transcript 后进入交互
 - [ ] `pigo --list-sessions` 行为与退出码不变（仍是打印并退出，不进入 TUI）
-- [ ] TUI 会话在退出/结束时按现有机制持久化到 `~/.pigo/sessions`
+- [ ] TUI 会话在退出/结束时按现有机制持久化到 `~/.aikota/sessions`
 - [ ] 单元测试：恢复一个含若干消息的会话后，transcript 初始内容包含这些消息
 - [ ] Typecheck/lint 通过
 - [ ] 在终端手动验证：`--continue` 进入 TUI 且历史可见

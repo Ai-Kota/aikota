@@ -20,7 +20,7 @@
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | SQLite 驱动 | `modernc.org/sqlite`（纯 Go，内置 FTS5） | 无 CGO，跨平台构建；FTS5 由 amalgamation 转译内置 |
-| 数据库位置 | 单个全局库 `$PIGO_HOME/memory.db`（默认 `~/.pigo/memory.db`） | 便于跨项目 global 记忆检索；scope/scope_id 区分维度 |
+| 数据库位置 | 单个全局库 `$AIKOTA_HOME/memory.db`（默认 `~/.aikota/memory.db`） | 便于跨项目 global 记忆检索；scope/scope_id 区分维度 |
 | 检查点重建 | 复用现有 `Compact()`/`RebuildContext()`，额外把摘要持久化为 `checkpoint.md` | 代码量最小，复用已验证的压缩/重建机制 |
 | 配置形态 | 嵌套 TOML 表 `[memory]` / `[checkpoint]` | 对齐 MiMo；结构清晰，便于扩展 |
 | 跨会话继承 | 纳入本期，复用会话 ParentID 树 + 新增水位字段 | pigo 会话已是 fork 树，继承成本可控 |
@@ -115,7 +115,7 @@ internal/
     ├── config/config.go          [MODIFY] [memory]/[checkpoint] 嵌套表
     ├── tui/                       [MODIFY] /rebuild /memory + 进行态提示
     └── repl/repl.go              [MODIFY] /rebuild /memory
-cmd/pigo/                         [MODIFY] overlay 新 config 到 options
+cmd/aikota/                         [MODIFY] overlay 新 config 到 options
 go.mod                            [MODIFY] + modernc.org/sqlite (pin)
 ```
 
@@ -124,7 +124,7 @@ go.mod                            [MODIFY] + modernc.org/sqlite (pin)
 
 ### 3.1 Schema Changes
 
-SQLite（`$PIGO_HOME/memory.db`，默认 `~/.pigo/memory.db`）：
+SQLite（`$AIKOTA_HOME/memory.db`，默认 `~/.aikota/memory.db`）：
 
 ```sql
 -- 内容表：一行 = 一个磁盘记忆文件
@@ -463,7 +463,7 @@ pigo 是本地单用户 CLI，无多租户/网络鉴权。核心安全边界是*
 
 1. **存储层地基**（US-001~004）：`internal/memory` 全部（store/schema/paths/reconcile/query/search）+ 单测。先落地纯 Go SQLite + FTS5 冒烟测试去风险。
 2. **工具与注入**（US-005,006）：`memory_tool.go` + `inject.go` + `reminder.go` provider + 系统提示词更新。
-3. **配置**（US-010）：`FileConfig` 增 `[memory]`/`[checkpoint]` + cmd/pigo overlay + 默认值/回退测试。
+3. **配置**（US-010）：`FileConfig` 增 `[memory]`/`[checkpoint]` + cmd/aikota overlay + 默认值/回退测试。
 4. **无限上下文**（US-007~009）：`checkpoint.go`（persist/load + watermark）→ `loop.go` maybeAutoCompact 集成持久化+召回 → `rebuild.go`（`/rebuild` + 事件 + WaitingCheckpoint）→ 回退验证。
 5. **会话继承**（SPEC §5 inheritContext）：`session.go` 头字段 + 继承加载。
 6. **命令可见性**（US-011）：TUI/REPL `/memory`/`/rebuild` + 进行态提示。
@@ -517,7 +517,7 @@ pigo 是本地单用户 CLI，无多租户/网络鉴权。核心安全边界是*
 - pigo 现有 `Compact()`/`RebuildContext()` 的检查点坍缩语义可直接承载"无限上下文"重建，无需改核心（仅叠加持久化+召回钩子）。
 - 记忆磁盘布局沿用现有 `~/.claude/projects/<slug>/memory/`（MEMORY.md + 类型化文件），零迁移。
 - 会话 JSONL 头新增可选字段向后兼容，旧会话解析为零值。
-- `$PIGO_HOME`（默认 `~/.pigo`）为全局 DB 落盘位置，与配置目录一致。
+- `$AIKOTA_HOME`（默认 `~/.aikota`）为全局 DB 落盘位置，与配置目录一致。
 
 
 

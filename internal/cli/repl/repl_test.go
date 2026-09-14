@@ -16,14 +16,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/prompts"
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/session"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/prompts"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/session"
 )
 
 // replProvider is a minimal Provider that streams one scripted text turn per

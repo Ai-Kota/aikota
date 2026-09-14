@@ -13,17 +13,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/compaction"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/plugin"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/session"
-	"github.com/smallnest/pigo/internal/trust"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/plugin"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/session"
+	"github.com/Ai-Kota/aikota/internal/trust"
 )
 
 var _ cli.Host = (*runSession)(nil)

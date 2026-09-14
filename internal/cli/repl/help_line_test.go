@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/prompts"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/prompts"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 func TestFormatHelpLine(t *testing.T) {

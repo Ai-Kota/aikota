@@ -1,11 +1,11 @@
-// Command pigo is the CLI entry point for the pigo agent. It parses flags,
+// Command aikota is the CLI entry point for the aikota agent. It parses flags,
 // overlays config.toml, and dispatches to one of the run modes — interactive
 // REPL, headless print, session listing, or the internal sub-agent RPC server:
 //
-//	pigo                                          # interactive REPL (on a TTY)
-//	pigo -p "read README and summarize"           # print mode: final text
-//	pigo -p "..." --output-format stream-json      # line-delimited JSON events
-//	pigo install <pkg> | list | uninstall | update # package management
+//	aikota                                          # interactive REPL (on a TTY)
+//	aikota -p "read README and summarize"           # print mode: final text
+//	aikota -p "..." --output-format stream-json      # line-delimited JSON events
+//	aikota install <pkg> | list | uninstall | update # package management
 //
 // The provider is resolved from --model against the built-in OpenAI-compatible
 // gateways (OpenRouter by default, Ollama for local models), with the API key
@@ -29,24 +29,24 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/config"
-	"github.com/smallnest/pigo/internal/cli/headless"
-	"github.com/smallnest/pigo/internal/cli/pkgcmd"
-	"github.com/smallnest/pigo/internal/cli/repl"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/cli/sessioncmd"
-	"github.com/smallnest/pigo/internal/cli/tui"
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/dream"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/selfupdate"
-	"github.com/smallnest/pigo/internal/webhook"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/config"
+	"github.com/Ai-Kota/aikota/internal/cli/headless"
+	"github.com/Ai-Kota/aikota/internal/cli/pkgcmd"
+	"github.com/Ai-Kota/aikota/internal/cli/repl"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/cli/sessioncmd"
+	"github.com/Ai-Kota/aikota/internal/cli/tui"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/dream"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/selfupdate"
+	"github.com/Ai-Kota/aikota/internal/webhook"
 )
 
 // Build metadata, injected at release time via -ldflags by goreleaser
 // (see .goreleaser.yaml). They keep their default values for `go build`/
-// `go run` from source, so `pigo --version` still works without a release build.
+// `go run` from source, so `aikota --version` still works without a release build.
 var (
 	version = "dev"
 	commit  = "none"
@@ -106,11 +106,11 @@ type cliOptions struct {
 	// --no-skills.
 	noPromptTemplates bool
 	// subagentRPC selects the process-isolated sub-agent server mode (US-019,
-	// #135): pigo reads JSON-RPC sub-agent run requests from stdin and writes
+	// #135): aikota reads JSON-RPC sub-agent run requests from stdin and writes
 	// results to stdout. Internal, used by SubAgentTool's process mode.
 	subagentRPC bool
 	// dream, when set, runs the process-isolated memory-consolidation pass and
-	// exits: pigo enumerates + consolidates the global/project memory scope, emits
+	// exits: aikota enumerates + consolidates the global/project memory scope, emits
 	// a single-line Report JSON on stdout, and exits 0/1. Internal, spawned by the
 	// dream scheduler (and usable headlessly by scripts). See internal/dream and
 	// SPEC §4.1/§4.2.
@@ -120,14 +120,14 @@ type cliOptions struct {
 	dreamDryRun bool
 	// thinkingLevel, when non-empty, is the --thinking-level flag: the reasoning
 	// effort for requests (off|minimal|low|medium|high|xhigh|max). It is the highest-
-	// precedence layer in resolveThinkingLevel, overriding PIGO_THINKING_LEVEL, the
+	// precedence layer in resolveThinkingLevel, overriding AIKOTA_THINKING_LEVEL, the
 	// config files, and the built-in default (medium).
 	thinkingLevel string
 	// showVersion prints build metadata (version/commit/date, injected at release
 	// time by goreleaser) and exits, without running the agent.
 	showVersion bool
 	// credentialRef is the config.toml `credential` value (issue #568): a named
-	// reference into ~/.pigo/.credentials.yaml (0600). It resolves to opts.apiKey
+	// reference into ~/.aikota/.credentials.yaml (0600). It resolves to opts.apiKey
 	// when no --api-key / config api_key is present; the literal secret never
 	// touches config files.
 	credentialRef string
@@ -135,12 +135,12 @@ type cliOptions struct {
 	// When set — or when stdout is not a TTY — the no-prompt path falls back to
 	// repl.Run rather than launching tui.Run.
 	noTUI bool
-	// cwd, when non-empty, is the working directory pigo switches to before doing
+	// cwd, when non-empty, is the working directory aikota switches to before doing
 	// anything else (matches the Claude Agent SDK's cwd option / git -C). Every
 	// cwd-derived resolution — built-in tool file roots, project trust, hooks
-	// project dir, .pigo/ project config, git info, the status-bar path — reads
+	// project dir, .aikota/ project config, git info, the status-bar path — reads
 	// os.Getwd(), so a single os.Chdir here makes all of them operate in the
-	// given directory. This is what makes pigo usable as an SDK backend that can
+	// given directory. This is what makes aikota usable as an SDK backend that can
 	// be pointed at an arbitrary project root.
 	cwd string
 	// memory holds the resolved [memory]/[checkpoint]/[compaction] config tables
@@ -167,23 +167,23 @@ type cliOptions struct {
 }
 
 func main() {
-	// Session subcommands (pigo session export|list, issue #570) dispatch early
+	// Session subcommands (aikota session export|list, issue #570) dispatch early
 	// like the package-management ones: they are standalone actions that never
 	// touch the interactive/headless flag surface.
 	if len(os.Args) > 1 && os.Args[1] == "session" {
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: pigo session export <session-id> [flags] | pigo session list")
+			fmt.Fprintln(os.Stderr, "usage: aikota session export <session-id> [flags] | aikota session list")
 			os.Exit(2)
 		}
 		os.Exit(sessioncmd.Run(os.Args[2], os.Args[3:], os.Stdout, os.Stderr))
 	}
 
-	// Package-management subcommands (pigo install|list|uninstall|update ...) are
+	// Package-management subcommands (aikota install|list|uninstall|update ...) are
 	// positional and distinct from the flag-driven agent modes, so peel them off
 	// before pflag parsing — the agent flags don't apply to them.
 	if len(os.Args) > 1 && pkgcmd.Subcommands[os.Args[1]] {
-		// `pigo update` routes by whether a positional package name follows it:
-		// none — or flags-only, e.g. `pigo update --check` — is binary self-update
+		// `aikota update` routes by whether a positional package name follows it:
+		// none — or flags-only, e.g. `aikota update --check` — is binary self-update
 		// (#466: download the latest release and replace this binary); a package
 		// name stays package-update (handled by pkgcmd). This is the US-003 dispatch
 		// split, with updateIsSelfUpdate as the pure classifier so routing is
@@ -202,7 +202,7 @@ func main() {
 	flag.StringVarP(&opts.protocol, "protocol", "P", "", "force wire protocol for a custom endpoint: openai | anthropic (default: inferred from model id)")
 	flag.StringVar(&opts.provider, "provider", "", "select a built-in provider by name (e.g. deepseek, minimax); uses its default base URL, protocol, and API-key env var (see --help provider list)")
 	flag.BoolVar(&opts.githubReview, "github-review", false, "run the isolated GitHub ready-for-review webhook (issue #567): PR draft→ready creates a read-only review session and runs it")
-	flag.StringVar(&opts.githubWebhookSecretEnv, "github-webhook-secret-env", "PIGO_GITHUB_WEBHOOK_SECRET", "name of the env var holding the high-entropy GitHub webhook secret (credential reference; never the secret itself)")
+	flag.StringVar(&opts.githubWebhookSecretEnv, "github-webhook-secret-env", "AIKOTA_GITHUB_WEBHOOK_SECRET", "name of the env var holding the high-entropy GitHub webhook secret (credential reference; never the secret itself)")
 	flag.StringVar(&opts.githubWebhookAddr, "github-webhook-addr", "127.0.0.1:3081", "listen address for the GitHub review webhook (put a TLS reverse proxy/tunnel in front; the endpoint is plain HTTP)")
 	flag.StringVar(&opts.githubWebhookRepo, "github-webhook-repo", "", "restrict review to this repository (owner/name); empty accepts any repo")
 	flag.StringVarP(&opts.outputFmt, "output-format", "o", "text", "output format: text | stream-json")
@@ -214,16 +214,16 @@ func main() {
 	flag.BoolVarP(&opts.continueLast, "continue", "c", false, "resume the most recent interactive session")
 	flag.BoolVarP(&opts.approve, "approve", "a", false, "trust the working directory for this run: skip the first-launch trust prompt and run side-effect tools without per-call confirmation")
 	flag.BoolVar(&opts.noSkills, "no-skills", false, "disable skill discovery (do not load skills under ~/.agents/skills as /skill-name commands)")
-	flag.BoolVar(&opts.noPromptTemplates, "no-prompt-templates", false, "disable prompt-template discovery (do not load ~/.pigo/{commands,prompts}, .pigo/prompts, config prompts, or --prompt-template); built-in slash commands are unaffected")
+	flag.BoolVar(&opts.noPromptTemplates, "no-prompt-templates", false, "disable prompt-template discovery (do not load ~/.aikota/{commands,prompts}, .aikota/prompts, config prompts, or --prompt-template); built-in slash commands are unaffected")
 	flag.StringVar(&opts.systemPrompt, "system-prompt", "", "system prompt to use instead of the default coding-assistant prompt (mirrors pi --system-prompt)")
 	flag.StringArrayVar(&opts.appendSystemPrompt, "append-system-prompt", nil, "append text or file contents to the system prompt; repeatable (mirrors pi --append-system-prompt)")
 	flag.StringArrayVar(&opts.promptTemplates, "prompt-template", nil, "load a prompt template from a file or directory (non-recursive); repeatable (mirrors pi --prompt-template)")
-	flag.StringVar(&opts.thinkingLevel, "thinking-level", "", "reasoning effort: off|minimal|low|medium|high|xhigh|max (overrides PIGO_THINKING_LEVEL and config; default medium)")
+	flag.StringVar(&opts.thinkingLevel, "thinking-level", "", "reasoning effort: off|minimal|low|medium|high|xhigh|max (overrides AIKOTA_THINKING_LEVEL and config; default medium)")
 	flag.BoolVar(&opts.subagentRPC, "subagent-rpc", false, "internal: run as a process-isolated sub-agent JSON-RPC server over stdio (US-019)")
 	flag.BoolVar(&opts.dream, "dream", false, "internal: run a memory-consolidation pass over the global/project memory scope, emit a Report JSON on stdout, and exit (SPEC §4.1)")
 	flag.BoolVar(&opts.dreamDryRun, "dream-dry-run", false, "internal: with --dream, analyze and report without writing files or updating dream state (SPEC §5.5)")
 	flag.BoolVar(&opts.noTUI, "no-tui", false, "use the line-based REPL instead of the full-screen TUI")
-	flag.StringVarP(&opts.cwd, "cwd", "C", "", "run as if pigo was started in this directory (matches the Claude Agent SDK's cwd; like git -C): tool file access, trust, hooks, and project config all resolve against it")
+	flag.StringVarP(&opts.cwd, "cwd", "C", "", "run as if aikota was started in this directory (matches the Claude Agent SDK's cwd; like git -C): tool file access, trust, hooks, and project config all resolve against it")
 	flag.BoolVarP(&opts.showVersion, "version", "v", false, "print version information and exit")
 	// Extend the default pflag usage with a "Supported providers" block so
 	// `--help` documents the values accepted by --provider (name → env var →
@@ -240,21 +240,21 @@ func main() {
 	// --cwd switches the process working directory before anything cwd-derived is
 	// resolved (tool roots, trust, hooks, project config, git info). Doing it here
 	// — after parse, before config overlay and dispatch — means every downstream
-	// os.Getwd() sees the requested directory, so pigo behaves as if it had been
+	// os.Getwd() sees the requested directory, so aikota behaves as if it had been
 	// launched there. A bad path is a usage error (exit 2) rather than a silent
 	// fall-through to the original directory.
 	if opts.cwd != "" {
 		if err := os.Chdir(opts.cwd); err != nil {
-			fmt.Fprintf(os.Stderr, "pigo: --cwd: %v\n", err)
+			fmt.Fprintf(os.Stderr, "aikota: --cwd: %v\n", err)
 			os.Exit(2)
 		}
 	}
 
-	// Overlay ~/.config/pigo/config.toml: file values replace built-in defaults,
+	// Overlay ~/.config/aikota/config.toml: file values replace built-in defaults,
 	// but any flag the user set on the command line still wins (CLI > file >
 	// default). A malformed file warns but does not abort — defaults apply.
 	if cfg, err := config.LoadFileConfig(config.FileConfigPath()); err != nil {
-		fmt.Fprintf(os.Stderr, "pigo: %v\n", err)
+		fmt.Fprintf(os.Stderr, "aikota: %v\n", err)
 	} else {
 		applyFileConfig(&opts, cfg, flag.CommandLine.Changed)
 	}
@@ -267,16 +267,16 @@ func main() {
 
 	// Resolve a credential reference into an API key (issue #568): the config
 	// carries only a NAME; the literal secret lives in
-	// $PIGO_HOME/.credentials.yaml (0600). A missing reference warns rather
+	// $AIKOTA_HOME/.credentials.yaml (0600). A missing reference warns rather
 	// than aborts — the provider may authenticate from the ambient environment.
 	if opts.credentialRef != "" && opts.apiKey == "" {
 		path := provider.CredentialFilePath()
 		if provider.CredentialFilePermissionsWarn(path) {
-			fmt.Fprintf(os.Stderr, "pigo: warning: %s is readable by group/other; chmod 600 recommended\n", path)
+			fmt.Fprintf(os.Stderr, "aikota: warning: %s is readable by group/other; chmod 600 recommended\n", path)
 		}
 		key, err := provider.ResolveCredentialReference(path, opts.credentialRef)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "pigo: credential %q: %v\n", opts.credentialRef, err)
+			fmt.Fprintf(os.Stderr, "aikota: credential %q: %v\n", opts.credentialRef, err)
 		} else {
 			opts.apiKey = key
 		}
@@ -284,7 +284,7 @@ func main() {
 
 	// --version is a standalone action: print build metadata and exit.
 	if opts.showVersion {
-		fmt.Printf("pigo %s (commit %s, built %s)\n", version, commit, date)
+		fmt.Printf("aikota %s (commit %s, built %s)\n", version, commit, date)
 		os.Exit(0)
 	}
 
@@ -401,7 +401,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 	// --list-sessions is a standalone action: print and exit.
 	if opts.listSessions {
 		if err := headless.PrintSessions(out); err != nil {
-			fmt.Fprintf(errOut, "pigo: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return 1
 		}
 		return 0
@@ -412,11 +412,11 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 	if opts.continueLast && resumeID == "" {
 		id, err := headless.MostRecentSessionID()
 		if err != nil {
-			fmt.Fprintf(errOut, "pigo: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return 1
 		}
 		if id == "" {
-			fmt.Fprintln(errOut, "pigo: no sessions to continue")
+			fmt.Fprintln(errOut, "aikota: no sessions to continue")
 			return 1
 		}
 		resumeID = id
@@ -431,12 +431,12 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 	if opts.prompt == "" {
 		isTTY := ui.StdoutIsTerminal()
 		if resumeID == "" && !isTTY {
-			fmt.Fprintln(errOut, "pigo: no prompt (use -p \"...\" or positional args)")
+			fmt.Fprintln(errOut, "aikota: no prompt (use -p \"...\" or positional args)")
 			return 2
 		}
 		env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
 		if err != nil {
-			fmt.Fprintf(errOut, "pigo: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return setupExitCode(err)
 		}
 		if env.Plugins != nil {
@@ -447,7 +447,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		}
 		thinking, err := run.ResolveThinkingLevel(opts.thinkingLevel)
 		if err != nil {
-			fmt.Fprintf(errOut, "pigo: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return 2
 		}
 		if shouldUseTUI(opts, isTTY) {
@@ -474,7 +474,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 				CliPrompts:        opts.promptTemplates,
 				NoPromptTemplates: opts.noPromptTemplates,
 			}); err != nil {
-				fmt.Fprintf(errOut, "pigo: %v\n", err)
+				fmt.Fprintf(errOut, "aikota: %v\n", err)
 				return 1
 			}
 			return 0
@@ -498,7 +498,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 			NoPromptTemplates: opts.noPromptTemplates,
 			Dream:             opts.dreamCfg,
 		}); err != nil {
-			fmt.Fprintf(errOut, "pigo: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return 1
 		}
 		return 0
@@ -506,13 +506,13 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 
 	mode, err := headless.ParseOutputMode(opts.outputFmt)
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return 2
 	}
 
 	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)
 	}
 	if env.Plugins != nil {
@@ -558,12 +558,12 @@ func setupExitCode(err error) int {
 func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int {
 	secret := strings.TrimSpace(os.Getenv(strings.TrimSpace(opts.githubWebhookSecretEnv)))
 	if secret == "" {
-		fmt.Fprintf(errOut, "pigo: --github-review requires a webhook secret in $%s\n", opts.githubWebhookSecretEnv)
+		fmt.Fprintf(errOut, "aikota: --github-review requires a webhook secret in $%s\n", opts.githubWebhookSecretEnv)
 		return 2
 	}
 	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)
 	}
 	if env.Plugins != nil {
@@ -574,7 +574,7 @@ func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int
 	}
 	store, err := headless.SessionStore()
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return 1
 	}
 	srv := &webhook.Server{
@@ -589,14 +589,14 @@ func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int
 		Runner:       nil, // set below via DefaultRunner once srv is built
 	}
 	srv.Runner = srv.DefaultRunner()
-	fmt.Fprintf(errOut, "pigo: github review webhook listening on %s (repo filter: %q; TLS reverse proxy required in front)\n", opts.githubWebhookAddr, opts.githubWebhookRepo)
+	fmt.Fprintf(errOut, "aikota: github review webhook listening on %s (repo filter: %q; TLS reverse proxy required in front)\n", opts.githubWebhookAddr, opts.githubWebhookRepo)
 	httpSrv := &http.Server{Addr: opts.githubWebhookAddr, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- httpSrv.ListenAndServe() }()
 	select {
 	case err := <-errCh:
 		if err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(errOut, "pigo: webhook listener: %v\n", err)
+			fmt.Fprintf(errOut, "aikota: webhook listener: %v\n", err)
 			return 1
 		}
 	case <-ctx.Done():
@@ -608,21 +608,21 @@ func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int
 func runDream(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 	projectDir, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: dream: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: dream: %v\n", err)
 		return 1
 	}
 	// The dream pass reuses the main-session model (SPEC Q3): resolve the same
-	// model/provider/api-key tuple cmd/pigo already overlaid from flags+config,
-	// and inject a real LLM-backed Consolidator so `pigo --dream` performs the
+	// model/provider/api-key tuple cmd/aikota already overlaid from flags+config,
+	// and inject a real LLM-backed Consolidator so `aikota --dream` performs the
 	// semantic merge/prune step (not just the deterministic dedup/path-clean).
 	thinking, err := run.ResolveThinkingLevel(opts.thinkingLevel)
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: dream: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: dream: %v\n", err)
 		return 1
 	}
 	cons, err := dream.NewLLMConsolidator(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, thinking)
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: dream: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: dream: %v\n", err)
 		return 1
 	}
 	r := &dream.Runner{Consolidator: cons}
@@ -631,13 +631,13 @@ func runDream(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		ProjectDir: projectDir,
 	})
 	if err != nil {
-		fmt.Fprintf(errOut, "pigo: dream: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: dream: %v\n", err)
 		return 1
 	}
 	// Single-line JSON on stdout is the stdout contract (SPEC §4.2). Encoder
 	// writes a trailing newline, keeping the report one line.
 	if err := json.NewEncoder(out).Encode(report); err != nil {
-		fmt.Fprintf(errOut, "pigo: dream: encode report: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: dream: encode report: %v\n", err)
 		return 1
 	}
 	return 0
@@ -654,11 +654,11 @@ func shouldUseTUI(opts cliOptions, isTTY bool) bool {
 	return isTTY && !opts.noTUI
 }
 
-// updateIsSelfUpdate classifies the arguments that follow `pigo update` (US-003)
+// updateIsSelfUpdate classifies the arguments that follow `aikota update` (US-003)
 // to route between binary self-update and pkgmgr package-update. It returns true
 // — self-update — when no positional package name is present: any argument that
 // does not begin with '-' is treated as a package name and routes to
-// package-update, while flags-only invocations (e.g. `pigo update --check`) stay
+// package-update, while flags-only invocations (e.g. `aikota update --check`) stay
 // on the self-update path. Keeping the decision side-effect-free lets the routing
 // be unit-tested without spawning either update path (see TestUpdateIsSelfUpdate).
 func updateIsSelfUpdate(rest []string) bool {

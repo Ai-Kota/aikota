@@ -3,7 +3,7 @@ package agent
 import (
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 func TestStructuredStreamHandlerNilCallbackLeavesEventHookNil(t *testing.T) {

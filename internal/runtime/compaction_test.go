@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/compaction"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // bigUserMessages returns n user messages each carrying `chars` characters, used

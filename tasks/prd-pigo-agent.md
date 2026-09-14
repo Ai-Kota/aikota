@@ -382,7 +382,7 @@ pi 本身是一个 monorepo，分为五层：`pi-ai`（多厂商 LLM 统一 API�
 - 流式：HTTP + SSE 解析需自实现或用轻量库，注意断流重连与超时（对标 pi 的 streaming resilience）。
 - 并发：工具并行执行用 goroutine + WaitGroup，结果按 index 回填保序；全程贯穿 `context.Context` 以支持取消。
 - 安全：密钥仅按 key 名引用，禁止写入日志；工具输出支持 secret redaction。
-- 目录约定：代码实现位于 `/Users/chaoyuepan/ai/pigo`，建议采用 `cmd/pigo`（入口）+ `internal/*`（各层）的标准 Go 布局。
+- 目录约定：代码实现位于 `/Users/chaoyuepan/ai/pigo`，建议采用 `cmd/aikota`（入口）+ `internal/*`（各层）的标准 Go 布局。
 - 测试：全程用 fake/faux provider（对标 pi 的 `providers/faux.ts`）驱动 loop 集成测试，避免依赖真实 API key。
 
 ## Success Metrics

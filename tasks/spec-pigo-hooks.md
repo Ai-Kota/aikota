@@ -172,7 +172,7 @@ type HookDecision struct {
 | Notification | trust 确认/等待 → 事件 | OnEvent 观察 | 无 | 否 |
 
 ### 4.2 输入(stdin)
-Dispatcher 把 `HookInput`(§3.3)序列化为单行 JSON 写入命令 stdin;并注入环境变量 `PIGO_SESSION_ID` / `PIGO_PROJECT_DIR` / `PIGO_EVENT_TYPE`(FR-4)。命令 cwd = 项目工作目录。
+Dispatcher 把 `HookInput`(§3.3)序列化为单行 JSON 写入命令 stdin;并注入环境变量 `AIKOTA_SESSION_ID` / `AIKOTA_PROJECT_DIR` / `AIKOTA_EVENT_TYPE`(FR-4)。命令 cwd = 项目工作目录。
 
 ### 4.3 输出(退出码 + stdout)
 | 退出码 | 含义 | stdout | stderr |
@@ -224,7 +224,7 @@ func Dispatch(eventType, toolName string, input HookInput) HookDecision:
 ### 5.3 Runner.Run(runner.go)
 ```
 1. 构造 exec.CommandContext(ctx_timeout, shell, "-c", h.Command)
-2. 设 cwd=projectDir;env=os.Environ()+PIGO_*
+2. 设 cwd=projectDir;env=os.Environ()+AIKOTA_*
 3. stdin = json(input);stdout/stderr = 各自 bounded buffer(上限 1MB,FR-13)
 4. 超时(h.Timeout 或默认 60s,FR-11)由 CommandContext 触发 kill
 5. 按退出码分类返回 (HookOutput, error);exit 2 → 从 stderr 取 reason
@@ -270,8 +270,8 @@ Hook **不重试**(副作用未知,重试不安全)。失败即按 §6.1 分类�
 Hook 命令以**当前用户身份**运行(与 `bash` 工具同权),不做额外提权/降权。风险通过信任边界 + 文档约束(PRD Non-Goals)。
 
 ### 7.2 信任边界(FR-14)
-- **用户级** hooks(`$PIGO_HOME/config.json`)始终启用。
-- **项目级** hooks(`./.pigo/config.json`)**仅在项目受信任时**加载;未信任项目的项目级 hooks 被忽略并提示(复用 `internal/trust`)。
+- **用户级** hooks(`$AIKOTA_HOME/config.json`)始终启用。
+- **项目级** hooks(`./.aikota/config.json`)**仅在项目受信任时**加载;未信任项目的项目级 hooks 被忽略并提示(复用 `internal/trust`)。
 - `InstallHooks` 接收 trust 判定结果,决定是否并入项目层 hooks。
 
 ### 7.3 数据保护(FR-17)

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // newTrustManagerAt builds a Manager backed by path.

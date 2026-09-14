@@ -49,7 +49,7 @@ pigo 目前已经有两类"内部"扩展能力:Go 层的函数钩子(`internal/a
 **Acceptance Criteria:**
 - [ ] 新增 `internal/hooks` 包,提供 `Runner.Run(ctx, hook HookConfig, input HookInput) (HookOutput, error)`
 - [ ] 命令通过系统 shell 执行(`sh -c` / 平台等价),事件 payload 作为 JSON 从 stdin 写入
-- [ ] 注入环境变量:至少 `PIGO_SESSION_ID`、`PIGO_PROJECT_DIR`、`PIGO_EVENT_TYPE`
+- [ ] 注入环境变量:至少 `AIKOTA_SESSION_ID`、`AIKOTA_PROJECT_DIR`、`AIKOTA_EVENT_TYPE`
 - [ ] payload 只包含**可观测、非敏感**字段(对齐现有 `events.go` 的 "never secrets" 纪律),明确不包含 API key/凭证
 - [ ] 命令 cwd 默认为项目工作目录
 - [ ] 单元测试:用一个把 stdin 回显到临时文件的脚本,断言 pigo 传入的 JSON 结构正确
@@ -188,7 +188,7 @@ pigo 目前已经有两类"内部"扩展能力:Go 层的函数钩子(`internal/a
 - FR-1: 系统必须在 `ConfigLayer` 中支持 `hooks` 段,key 为事件类型,value 为 matcher + 命令列表。
 - FR-2: 系统必须按现有 config 分层顺序**追加合并** hooks(不同层同一事件的 hook 累加,而非覆盖)。
 - FR-3: 系统必须支持 matcher 匹配:空/`*` 匹配全部,精确工具名,`|` 多值,简单正则。
-- FR-4: 系统必须在触发 hook 时,将事件 payload 以 JSON 从 stdin 传入命令,并注入 `PIGO_SESSION_ID`/`PIGO_PROJECT_DIR`/`PIGO_EVENT_TYPE` 环境变量。
+- FR-4: 系统必须在触发 hook 时,将事件 payload 以 JSON 从 stdin 传入命令,并注入 `AIKOTA_SESSION_ID`/`AIKOTA_PROJECT_DIR`/`AIKOTA_EVENT_TYPE` 环境变量。
 - FR-5: 系统必须以退出码 `0`=放行、`2`=阻断(stderr 作为反馈)、其它非 0=失败的语义解释 hook 结果。
 - FR-6: 系统必须解析 hook 的 stdout JSON,支持 `decision`/`reason`/`additionalContext`/`continue`/`updatedInput` 字段。
 - FR-7: 系统必须在 PreToolUse 支持阻断工具执行与改写工具参数。
@@ -198,7 +198,7 @@ pigo 目前已经有两类"内部"扩展能力:Go 层的函数钩子(`internal/a
 - FR-11: 系统必须为每个 hook 提供默认超时(建议默认 **60 秒**,可在 HookConfig 覆盖)。
 - FR-12: 系统必须为 Stop/SubagentStop 的连续 block 设默认上限(建议默认 **5 次**)。
 - FR-13: 系统必须对 hook stdout/stderr 读取设大小上限(建议默认 **1 MB**),超限截断。
-- FR-14: 系统必须仅在**受信任项目**中启用项目级(`.pigo`)hooks;用户级 hooks 始终启用。
+- FR-14: 系统必须仅在**受信任项目**中启用项目级(`.aikota`)hooks;用户级 hooks 始终启用。
 - FR-15: 系统必须在任一 hook 执行失败/超时时隔离错误、记录告警,且对可阻断 hook 默认 fail-open。
 - FR-16: 系统必须支持以下 hook 点:PreToolUse、PostToolUse、UserPromptSubmit、Stop、SubagentStop、SessionStart、SessionEnd、PreCompact、Notification。
 - FR-17: 系统必须保证 payload 不包含 API key、凭证等敏感字段。

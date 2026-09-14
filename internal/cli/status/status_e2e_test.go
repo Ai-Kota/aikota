@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli"
 )
 
 // TestStatusFreshSessionAllSections verifies /status renders every section on a

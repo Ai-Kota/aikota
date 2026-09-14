@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // TestRunHeadlessPrintMode runs a text→tool→text scenario through RunHeadless in

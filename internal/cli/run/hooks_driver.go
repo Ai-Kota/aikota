@@ -18,9 +18,9 @@ package run
 import (
 	"context"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // InstallDriverHooks is the uniform hook-wiring seam for every driver. It

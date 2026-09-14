@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // newRemoteTestSession builds a fresh run session over a temp-dir store for the

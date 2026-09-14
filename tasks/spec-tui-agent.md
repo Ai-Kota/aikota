@@ -32,7 +32,7 @@
 
 ### 2.1 System Context
 ```
-cmd/pigo/main.go (dispatch)
+cmd/aikota/main.go (dispatch)
   │  无 -p + TTY + 未 --no-tui
   ▼
 internal/cli/tui.Run(tui.Options)         ← 新增，镜像 repl.Run 的装配
@@ -75,7 +75,7 @@ rootModel.Update(tea.Msg)  ← 由 waitForEvent tea.Cmd 从 bufChan 读出
 
 ### 2.4 File Structure
 ```
-cmd/pigo/
+cmd/aikota/
 └── main.go                         [MODIFY: dispatch 增加 TUI 分支 + --no-tui flag]
 
 internal/cli/tui/                    [NEW 包]
@@ -109,7 +109,7 @@ go.mod / go.sum                      [MODIFY: +bubbletea/v2 +bubbles/v2; lipglos
 ## 3. Data Model
 
 ### 3.1 Schema Changes
-无持久化 schema 变更。会话仍用现有 `session.Store`（`~/.pigo/sessions`）。
+无持久化 schema 变更。会话仍用现有 `session.Store`（`~/.aikota/sessions`）。
 
 ### 3.2 Entity Definitions
 ```go
@@ -177,7 +177,7 @@ type respNode struct { text string; depth int; kind nodeKind } // 缩进 + 着�
 | `dispatch`（改） | 现有签名不变 | 增加 TUI 分支判断 |
 
 ### 4.2 Request/Response Schemas
-入口判定（`cmd/pigo/main.go` dispatch，无 prompt 分支）：
+入口判定（`cmd/aikota/main.go` dispatch，无 prompt 分支）：
 ```
 if opts.prompt == "" {
     useTUI := resumeID != "" || ui.StdoutIsTerminal()

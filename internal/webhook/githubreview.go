@@ -39,12 +39,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/session"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/session"
 )
 
 // maxWebhookBody bounds one webhook payload (GitHub caps PR payloads far
@@ -115,7 +115,7 @@ func (s *Server) clock() time.Time {
 // model can inspect the workspace but cannot write, edit, execute, or fan out.
 var readOnlyToolNames = map[string]struct{}{"read": {}, "grep": {}, "find": {}}
 
-// ReadOnlyTools returns the read-only subset of pigo's built-in tools, the tool
+// ReadOnlyTools returns the read-only subset of aikota's built-in tools, the tool
 // set a review session runs with.
 func ReadOnlyTools(cwd string) []agentcore.AgentTool {
 	var out []agentcore.AgentTool

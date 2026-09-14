@@ -15,9 +15,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // maxConsecutiveStopBlocks is the default FR-12 ceiling on how many times a Stop

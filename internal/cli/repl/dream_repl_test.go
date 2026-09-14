@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/dream"
+	"github.com/Ai-Kota/aikota/internal/dream"
 )
 
 // sampleReport is a non-trivial Report used across the renderer tests: every

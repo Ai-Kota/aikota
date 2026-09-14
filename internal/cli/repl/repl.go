@@ -1,5 +1,5 @@
 // This file implements the line-based interactive REPL (US-003/#106) that
-// replaces the former full-screen bubbletea TUI. When pigo is invoked without a
+// replaces the former full-screen bubbletea TUI. When aikota is invoked without a
 // prompt on a terminal it runs a simple read → run → stream-print loop over a
 // persisted session: no full-screen rendering, no popup menus, no viewport — a
 // prompt, the agent's streamed reply, and a new prompt.
@@ -24,24 +24,24 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/btw"
-	"github.com/smallnest/pigo/internal/cli/goal"
-	"github.com/smallnest/pigo/internal/cli/memstatus"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/cli/status"
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/clipboard"
-	"github.com/smallnest/pigo/internal/compaction"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/memory"
-	"github.com/smallnest/pigo/internal/plugin"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/session"
-	"github.com/smallnest/pigo/internal/trust"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/btw"
+	"github.com/Ai-Kota/aikota/internal/cli/goal"
+	"github.com/Ai-Kota/aikota/internal/cli/memstatus"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/cli/status"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/clipboard"
+	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/plugin"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/session"
+	"github.com/Ai-Kota/aikota/internal/trust"
 )
 
 // replDeps bundles the collaborators a REPL run needs. They are assembled once
@@ -73,9 +73,9 @@ type replDeps struct {
 	// trust is disabled (e.g. the store could not be loaded); when nil the
 	// BeforeToolCall hook is not installed and the first-run prompt is skipped.
 	trust *trust.Manager
-	// cwd is the directory pigo was launched in, used as the trust key and as
+	// cwd is the directory aikota was launched in, used as the trust key and as
 	// the directory side-effect tools are gated against. It does not change
-	// during a session (pigo does not cd).
+	// during a session (aikota does not cd).
 	cwd string
 	// in is the shared buffered input reader. The main loop and the tool-call
 	// confirmation prompt both read from it so input typed ahead is never split
@@ -111,7 +111,7 @@ type replDeps struct {
 	// #281), so a bare "/btw" reopens it and shows its history. It is nil until
 	// the first /btw and is reset to nil on any session switch (/fork, /clone,
 	// /import) because a side thread branched from the old conversation no longer
-	// makes sense against a different one. It is never persisted: restarting pigo
+	// makes sense against a different one. It is never persisted: restarting aikota
 	// starts with lastBtw nil again.
 	lastBtw *agentcore.AgentContext
 	// lastBtwBase is the number of leading messages in lastBtw.Messages that were
@@ -214,7 +214,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 	out = deps.tee
 
 	// Stop a still-running remote-control server when the REPL exits (FR-16), so
-	// quitting pigo tears down the LAN listener rather than leaking it. The
+	// quitting aikota tears down the LAN listener rather than leaking it. The
 	// closure reads deps.remote at exit time, so it covers a session started mid
 	// run; an explicit /remote-control stop clears deps.remote and makes this a
 	// no-op.
@@ -243,7 +243,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 	deps.hookDeps = run.HookDeps{SessionID: deps.header.ID, ProjectDir: deps.cwd, WarnLog: out}
 	trusted := deps.trust != nil && deps.trust.IsTrusted(deps.cwd)
 	if set, err := run.ResolveHookSet(deps.cwd, trusted); err != nil {
-		fmt.Fprintf(out, "pigo: hooks disabled: %v\n", err)
+		fmt.Fprintf(out, "aikota: hooks disabled: %v\n", err)
 	} else if d := run.BuildDispatcher(set, deps.hookDeps); d != nil {
 		deps.dispatcher = d
 		if deps.reminders == nil {
@@ -314,7 +314,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 	readerBusy := false
 
 	for {
-		replPrompt := fmt.Sprintf("pigo(%s)> ", deps.live.Model)
+		replPrompt := fmt.Sprintf("aikota(%s)> ", deps.live.Model)
 		if !readerBusy {
 			fmt.Fprintln(out)
 			promptReq <- replPrompt
@@ -373,7 +373,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 			runManualCompact(out, deps)
 			deps.header.UpdatedAt = time.Now().UTC()
 			if err := deps.store.Save(deps.header, deps.agentCtx.Messages); err != nil {
-				fmt.Fprintf(out, "pigo: session save failed: %v\n", err)
+				fmt.Fprintf(out, "aikota: session save failed: %v\n", err)
 			}
 			deps.persisted = len(deps.agentCtx.Messages)
 			deps.curLeaf = ""
@@ -392,7 +392,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 			runManualRebuild(out, deps)
 			deps.header.UpdatedAt = time.Now().UTC()
 			if err := deps.store.Save(deps.header, deps.agentCtx.Messages); err != nil {
-				fmt.Fprintf(out, "pigo: session save failed: %v\n", err)
+				fmt.Fprintf(out, "aikota: session save failed: %v\n", err)
 			}
 			deps.persisted = len(deps.agentCtx.Messages)
 			deps.curLeaf = ""
@@ -474,7 +474,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 		}
 		if line == "/dream" || strings.HasPrefix(line, "/dream ") {
 			// /dream is intercepted here (like /memory/status) because it spawns the
-			// process-isolated consolidation subprocess (pigo --dream) and renders the
+			// process-isolated consolidation subprocess (aikota --dream) and renders the
 			// returned Report against live state (deps.cwd / deps.memoryRoot) — work a
 			// string→string Action closure cannot do. It never mutates the shared
 			// context, so no session re-save/leaf reset is needed. The
@@ -572,7 +572,7 @@ func runREPL(in io.Reader, out io.Writer, deps replDeps) error {
 func streamRun(ctx context.Context, out io.Writer, deps replDeps, prompt string) {
 	content, err := ui.BuildUserContent(prompt)
 	if err != nil {
-		fmt.Fprintf(out, "pigo: %v\n", err)
+		fmt.Fprintf(out, "aikota: %v\n", err)
 		return
 	}
 	// UserPromptSubmit runs before the prompt is committed to the shared context,
@@ -581,7 +581,7 @@ func streamRun(ctx context.Context, out io.Writer, deps replDeps, prompt string)
 	if deps.dispatcher != nil {
 		pc := runtime.RunConfig{Reminders: deps.reminders}
 		if block, reason := run.DispatchUserPromptSubmit(ctx, deps.dispatcher, &pc, deps.hookDeps, prompt); block {
-			fmt.Fprintf(out, "pigo: prompt blocked by hook: %s\n", reason)
+			fmt.Fprintf(out, "aikota: prompt blocked by hook: %s\n", reason)
 			return
 		}
 		deps.reminders = pc.Reminders
@@ -751,7 +751,7 @@ func runForkClone(out io.Writer, deps *replDeps, line string) {
 	cli.PersistTurn(out, deps)
 	_, entries, err := deps.store.LoadEntries(deps.header.ID)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(out, "pigo: cannot read session tree: %v\n", err)
+		fmt.Fprintf(out, "aikota: cannot read session tree: %v\n", err)
 		return
 	}
 	if len(entries) == 0 {
@@ -805,7 +805,7 @@ func runForkClone(out io.Writer, deps *replDeps, line string) {
 
 	newHeader, path, err := deps.store.Fork(deps.header.ID, leafID, time.Now().UTC())
 	if err != nil {
-		fmt.Fprintf(out, "pigo: fork failed: %v\n", err)
+		fmt.Fprintf(out, "aikota: fork failed: %v\n", err)
 		return
 	}
 
@@ -858,7 +858,7 @@ func runTree(out io.Writer, deps *replDeps, line string) {
 	cli.PersistTurn(out, deps)
 	_, entries, err := deps.store.LoadEntries(deps.header.ID)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(out, "pigo: cannot read session tree: %v\n", err)
+		fmt.Fprintf(out, "aikota: cannot read session tree: %v\n", err)
 		return
 	}
 	if len(entries) == 0 {
@@ -927,7 +927,7 @@ func runExport(out io.Writer, deps *replDeps, line string) {
 	}
 	n, err := deps.store.Export(deps.header.ID, path)
 	if err != nil {
-		fmt.Fprintf(out, "pigo: export failed: %v\n", err)
+		fmt.Fprintf(out, "aikota: export failed: %v\n", err)
 		return
 	}
 	fmt.Fprintf(out, "exported %d entries to %s\n", n, path)
@@ -946,7 +946,7 @@ func runImport(out io.Writer, deps *replDeps, line string) {
 	}
 	newHeader, entries, err := deps.store.Import(path, time.Now().UTC())
 	if err != nil {
-		fmt.Fprintf(out, "pigo: import failed: %v\n", err)
+		fmt.Fprintf(out, "aikota: import failed: %v\n", err)
 		return
 	}
 	// Swap the live session to the imported one: rebuild the flat message list and
@@ -1001,7 +1001,7 @@ func runCopy(out io.Writer, deps *replDeps) {
 			fmt.Fprintln(out, text)
 			return
 		}
-		fmt.Fprintf(out, "pigo: copy failed: %v\n", err)
+		fmt.Fprintf(out, "aikota: copy failed: %v\n", err)
 		return
 	}
 	fmt.Fprintf(out, "copied last reply to clipboard (%d chars)\n", len(text))

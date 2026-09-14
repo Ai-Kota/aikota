@@ -61,16 +61,16 @@
 - **`Report`**：结构化变更统计（见 3.2）。
 - **`prompt.go`**：dream Agent 系统提示词常量。
 
-复用既有：`internal/memory`（`Store.Open`/`Root`/`Reconcile`/`paths`）、`internal/session`（`Store` 读 JSONL）、`internal/cli/headless`（agent 运行基建）、`cmd/pigo`（flag 解析、`--cwd`）。
+复用既有：`internal/memory`（`Store.Open`/`Root`/`Reconcile`/`paths`）、`internal/session`（`Store` 读 JSONL）、`internal/cli/headless`（agent 运行基建）、`cmd/aikota`（flag 解析、`--cwd`）。
 
 ### 2.3 Module Interactions
-- **父进程**（`internal/cli/repl` 与 `cmd/pigo` 会话初始化）：调用 `dream.Scheduler`。`/dream` 拦截点与 `/compact`、`/rebuild` 同构（`repl.go` streamPrompt 循环内 `if line == "/dream" || strings.HasPrefix(line, "/dream ")`）。
-- **子进程**（`cmd/pigo` 解析 `--dream` → 调 `dream.Runner.Run`）：独立完成固结，`os.Exit(0/1)`，报告经 stdout。
+- **父进程**（`internal/cli/repl` 与 `cmd/aikota` 会话初始化）：调用 `dream.Scheduler`。`/dream` 拦截点与 `/compact`、`/rebuild` 同构（`repl.go` streamPrompt 循环内 `if line == "/dream" || strings.HasPrefix(line, "/dream ")`）。
+- **子进程**（`cmd/aikota` 解析 `--dream` → 调 `dream.Runner.Run`）：独立完成固结，`os.Exit(0/1)`，报告经 stdout。
 - **记忆写回后** 调 `memory.Reconcile(store)` 重建 FTS 索引 + 剪除已删文件行。
 
 ### 2.4 File Structure
 ```
-cmd/pigo/
+cmd/aikota/
   main.go                         [MODIFY: 注册 --dream / --dream-dry-run 内部 flag，分派到 dream.Runner]
 internal/dream/                   [NEW 包]
   config.go                       [NEW: Config + 默认值]
@@ -338,7 +338,7 @@ dream 不外发记忆内容到第三方（仅发给已配置的主模型 provide
 ### 10.1 Phases
 1. **基础设施**（无 LLM 依赖，纯确定性、易测）：`config` 表 + `state` + `lock` + `scheduler.Due`。
 2. **确定性 plan**：`plan.go`（枚举/去重/路径校验/相似度配对）+ `report.go`。
-3. **子进程入口**：`cmd/pigo` `--dream` 分派 + `Runner` 骨架（先支持 dry-run 与确定性部分，LLM 决策用注入接口）。
+3. **子进程入口**：`cmd/aikota` `--dream` 分派 + `Runner` 骨架（先支持 dry-run 与确定性部分，LLM 决策用注入接口）。
 4. **LLM apply**：接主会话模型，dream 提示词，合并/剔除 + `distill` JSONL 提炼；写回 + `Reconcile`。
 5. **父进程集成**：`/dream` 拦截 + 报告打印；会话启动 `MaybeRunBackground` 后台触发 + 一行摘要提示。
 6. **文档**：slash-commands / configuration / features 三页双语更新。
@@ -380,5 +380,5 @@ Phase 1–3 可先合入（无行为暴露，纯内部）。Phase 4–5 完成�
 ### 11.3 Assumptions
 - `memory` 包对外可获取 `memoryRoot` 且 `Reconcile` 可独立调用（已由 `Store.Root()`/`reconcile.go` 证实）。
 - `session.Store` 可枚举并按项目/时间过滤会话（`List()`/`SessionHeader` 提供 UpdatedAt；项目归属字段若缺失需在 header 补充，作为 #6 的前置小改动）。
-- 主会话模型配置在子进程可经环境/config 复用（`cmd/pigo` 现有解析路径覆盖）。
+- 主会话模型配置在子进程可经环境/config 复用（`cmd/aikota` 现有解析路径覆盖）。
 - 后台 spawn 采用 `os.Executable() + --dream -C <projDir>`，继承必要环境变量。

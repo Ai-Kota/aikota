@@ -13,11 +13,11 @@ import (
 	"io"
 	"sort"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/compaction"
-	"github.com/smallnest/pigo/internal/memory"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // scopeOrder is the display order for memory scopes. Scopes not listed here are

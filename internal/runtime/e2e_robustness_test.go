@@ -24,8 +24,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/compaction"
 )
 
 // TestE2E_LongSession_TriggersCompaction drives a long session whose seeded

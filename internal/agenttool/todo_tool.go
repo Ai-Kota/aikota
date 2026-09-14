@@ -16,7 +16,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // TodoStatus is the lifecycle state of a single todo item.

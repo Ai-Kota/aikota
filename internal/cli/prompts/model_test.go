@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // TestModelCommandSwitchesToBareProviderName verifies /model zai selects the

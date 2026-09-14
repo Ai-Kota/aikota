@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // imageRefPattern matches the two supported image-reference syntaxes:

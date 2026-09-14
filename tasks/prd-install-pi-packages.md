@@ -4,7 +4,7 @@
 
 pi 生态在 npm 上发布了大量 agent 扩展包（catalog: https://pi.dev/packages），涵盖 **extension（可执行扩展/插件）、skill（技能）、prompt（提示词/命令模板）、theme（主题）** 四类，其中不少扩展本质是 MCP adapter（如 `pi-mcp-adapter`）。pi 用户通过 `pi install npm:<package>` 一行命令即可安装。
 
-pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PIGO_HOME/plugins` 下的可执行文件，走 JSON-RPC）、**命令系统**（`$PIGO_HOME/commands/*.md`）和 **skill 系统**（`~/.agents/skills`）。目前用户无法直接复用 pi 生态里的现成包。
+pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$AIKOTA_HOME/plugins` 下的可执行文件，走 JSON-RPC）、**命令系统**（`$AIKOTA_HOME/commands/*.md`）和 **skill 系统**（`~/.agents/skills`）。目前用户无法直接复用 pi 生态里的现成包。
 
 本功能给 pigo 增加一个 `pigo install` 子命令，从 npm 拉取 pi 包，识别其类型，并把内容分发到 pigo 对应的目录，使其被现有的发现机制自动加载。同时提供 `list` 与 `uninstall` 管理已安装的包。
 
@@ -30,10 +30,10 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 
 | pi 包类型 | 识别依据（package.json 字段/约定） | pigo 目标目录 | 说明 |
 |-----------|-----------------------------------|--------------|------|
-| extension（含 MCP adapter） | 声明可执行入口（`bin`/`pi.extension`） | `$PIGO_HOME/plugins/` | 落地为可执行文件，走现有 JSON-RPC 插件协议 |
-| skill | 含 `SKILL.md`/skill 元数据（`pi.skill`） | skills 目录（`~/.agents/skills` 或 `PIGO_SKILLS_DIR`） | 复用现有 skill 加载 |
-| prompt / command | 含命令模板（`pi.prompt` / `commands/*.md`） | `$PIGO_HOME/commands/` | 复用现有命令加载 |
-| theme | `pi.theme` | `$PIGO_HOME/themes/`（暂存） | [Assumption] pigo 尚无主题系统，先落盘保存，运行时消费留待后续（见 Open Questions） |
+| extension（含 MCP adapter） | 声明可执行入口（`bin`/`pi.extension`） | `$AIKOTA_HOME/plugins/` | 落地为可执行文件，走现有 JSON-RPC 插件协议 |
+| skill | 含 `SKILL.md`/skill 元数据（`pi.skill`） | skills 目录（`~/.agents/skills` 或 `AIKOTA_SKILLS_DIR`） | 复用现有 skill 加载 |
+| prompt / command | 含命令模板（`pi.prompt` / `commands/*.md`） | `$AIKOTA_HOME/commands/` | 复用现有命令加载 |
+| theme | `pi.theme` | `$AIKOTA_HOME/themes/`（暂存） | [Assumption] pigo 尚无主题系统，先落盘保存，运行时消费留待后续（见 Open Questions） |
 
 > 类型识别以包 `package.json` 中的 pi 元数据字段为准；一个包可同时声明多种类型（catalog 中存在 `extensionskill` 组合），按声明的每种类型分别分发。识别不出任何已知类型时，安装失败并提示。
 
@@ -43,7 +43,7 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 **Description:** 作为开发者，我需要一份记录已安装包的清单文件，以便 `list`/`uninstall`/`update` 能准确知道装了什么、装了哪些文件。
 
 **Acceptance Criteria:**
-- [ ] 在 `$PIGO_HOME/packages.json`（或等价 lockfile）中记录每个已安装包：`name`、`source`（如 `npm:pi-mcp-adapter`）、`version`、`type[]`、安装落地的文件路径列表
+- [ ] 在 `$AIKOTA_HOME/packages.json`（或等价 lockfile）中记录每个已安装包：`name`、`source`（如 `npm:pi-mcp-adapter`）、`version`、`type[]`、安装落地的文件路径列表
 - [ ] 定义并实现读写该 lockfile 的函数（不存在时视为空清单，不报错）
 - [ ] lockfile 为格式化 JSON，可人工阅读
 - [ ] 该模块有单元测试覆盖读、写、空文件、损坏文件容错
@@ -85,7 +85,7 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 **Description:** 作为用户，安装一个 extension（如 MCP adapter）后，它应作为 pigo 插件被自动发现。
 
 **Acceptance Criteria:**
-- [ ] extension 包的可执行入口被落地到 `$PIGO_HOME/plugins/`，且带可执行权限（chmod +x）
+- [ ] extension 包的可执行入口被落地到 `$AIKOTA_HOME/plugins/`，且带可执行权限（chmod +x）
 - [ ] 落地的文件路径写入 US-001 的 lockfile
 - [ ] 安装后启动 pigo，该插件出现在已加载插件中（现有 `plugin.Discover` 能发现它）
 - [ ] 若包声明的入口需运行时（如 node 脚本），安装时验证运行时存在或在 lockfile 记录其运行方式（见 Open Questions）
@@ -96,7 +96,7 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 **Description:** 作为用户，安装一个 skill 包后，它应被 pigo 的 skill 加载机制发现。
 
 **Acceptance Criteria:**
-- [ ] skill 包内容被落地到 skills 目录（`~/.agents/skills/<name>/`，遵循 `PIGO_SKILLS_DIR` 覆盖）
+- [ ] skill 包内容被落地到 skills 目录（`~/.agents/skills/<name>/`，遵循 `AIKOTA_SKILLS_DIR` 覆盖）
 - [ ] 落地文件路径写入 lockfile
 - [ ] 安装后 skill 以 `/skill-name` 形式出现在可用命令中（现有 skill 加载能发现它）
 - [ ] 有测试验证 mock skill 包分发后出现在 skills 目录
@@ -106,7 +106,7 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 **Description:** 作为用户，安装一个 prompt/command 包后，它应作为斜杠命令可用。
 
 **Acceptance Criteria:**
-- [ ] command 模板被落地到 `$PIGO_HOME/commands/`（遵循现有 `commands/*.md` 约定）
+- [ ] command 模板被落地到 `$AIKOTA_HOME/commands/`（遵循现有 `commands/*.md` 约定）
 - [ ] 落地文件路径写入 lockfile
 - [ ] 与内置命令重名时，沿用现有「用户命令被内置命令 shadow」的行为并在安装时警告
 - [ ] 有测试验证 mock prompt 包分发后出现在 commands 目录
@@ -116,7 +116,7 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 **Description:** 作为用户，安装 theme 包不应报错；即便 pigo 暂无主题系统，也先把主题文件保存下来。
 
 **Acceptance Criteria:**
-- [ ] theme 包内容落地到 `$PIGO_HOME/themes/<name>/`
+- [ ] theme 包内容落地到 `$AIKOTA_HOME/themes/<name>/`
 - [ ] 落地文件路径写入 lockfile
 - [ ] 安装成功输出提示：`theme installed but not yet consumed by pigo runtime`（`[Assumption]`，见 Open Questions）
 - [ ] 有测试验证 mock theme 包分发后出现在 themes 目录
@@ -169,11 +169,11 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 - FR-3: 系统在安装前必须检测本机 `npm` 是否可用，不可用时必须报错并退出非零。
 - FR-4: 系统必须通过本机 npm 将包内容获取到临时目录，完成后必须清理临时目录。
 - FR-5: 系统必须读取包 `package.json` 的 pi 元数据以判定包类型（可为多类型）。
-- FR-6: 系统必须把 extension（含 MCP adapter）类型落地到 `$PIGO_HOME/plugins/` 并设置可执行权限。
-- FR-7: 系统必须把 skill 类型落地到 skills 目录（遵循 `PIGO_SKILLS_DIR` 覆盖）。
-- FR-8: 系统必须把 prompt/command 类型落地到 `$PIGO_HOME/commands/`。
-- FR-9: 系统必须把 theme 类型落地到 `$PIGO_HOME/themes/` 并提示暂未被运行时消费。
-- FR-10: 系统必须在 `$PIGO_HOME/packages.json` 中记录每个已安装包的 name、source、version、type[]、落地文件列表。
+- FR-6: 系统必须把 extension（含 MCP adapter）类型落地到 `$AIKOTA_HOME/plugins/` 并设置可执行权限。
+- FR-7: 系统必须把 skill 类型落地到 skills 目录（遵循 `AIKOTA_SKILLS_DIR` 覆盖）。
+- FR-8: 系统必须把 prompt/command 类型落地到 `$AIKOTA_HOME/commands/`。
+- FR-9: 系统必须把 theme 类型落地到 `$AIKOTA_HOME/themes/` 并提示暂未被运行时消费。
+- FR-10: 系统必须在 `$AIKOTA_HOME/packages.json` 中记录每个已安装包的 name、source、version、type[]、落地文件列表。
 - FR-11: 系统必须提供 `pigo list` 列出 lockfile 中的已安装包。
 - FR-12: 系统必须提供 `pigo uninstall <name>` 删除包的落地文件并移除 lockfile 条目。
 - FR-13: 系统必须提供 `pigo update [name]` 将指定包（或全部包）更新到最新版本。
@@ -192,10 +192,10 @@ pigo 是 pi agent 的 Go 复刻版，已具备自己的 **plugin 系统**（`$PI
 
 ## Technical Considerations
 
-- 复用现有发现机制：`plugin.Discover($PIGO_HOME/plugins)`、skills 加载（`~/.agents/skills` / `PIGO_SKILLS_DIR`）、命令加载（`$PIGO_HOME/commands/*.md`）。分发只需把文件放对目录，无需改动加载器。
-- `$PIGO_HOME` 解析沿用现有约定（`PIGO_HOME` 环境变量，默认 `~/.pigo`）。
+- 复用现有发现机制：`plugin.Discover($AIKOTA_HOME/plugins)`、skills 加载（`~/.agents/skills` / `AIKOTA_SKILLS_DIR`）、命令加载（`$AIKOTA_HOME/commands/*.md`）。分发只需把文件放对目录，无需改动加载器。
+- `$AIKOTA_HOME` 解析沿用现有约定（`AIKOTA_HOME` 环境变量，默认 `~/.aikota`）。
 - 调用 npm 时用非交互方式（避免交互式提示阻塞），透传 stderr 以便诊断。
-- lockfile 与安装模块建议置于新 package（如 `internal/pkgmgr`），CLI 子命令置于 `cmd/pigo`。
+- lockfile 与安装模块建议置于新 package（如 `internal/pkgmgr`），CLI 子命令置于 `cmd/aikota`。
 - 安全提示：安装第三方可执行 extension 会在本机运行外部代码，属于中高风险动作；安装 extension 时应向用户提示来源与风险（可结合已有的 Project Trust 机制，见近期提交 US-018）。
 
 ## Success Metrics

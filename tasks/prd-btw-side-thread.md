@@ -116,11 +116,11 @@
 
 ## Technical Considerations
 
-- **拦截位置：** 在 `cmd/pigo/repl.go` 主循环中，与 `/goal`（`repl.go:262`）同层新增 `if line == "/btw" || strings.HasPrefix(line, "/btw ")` 分支，调用新函数 `runBtw(setCancel, out, &deps, line)`。守卫需避免把 `/btweak` 之类误匹配（用 `== "/btw"` 或前缀 `"/btw "`）。
+- **拦截位置：** 在 `cmd/aikota/repl.go` 主循环中，与 `/goal`（`repl.go:262`）同层新增 `if line == "/btw" || strings.HasPrefix(line, "/btw ")` 分支，调用新函数 `runBtw(setCancel, out, &deps, line)`。守卫需避免把 `/btweak` 之类误匹配（用 `== "/btw"` 或前缀 `"/btw "`）。
 - **上下文隔离：** 构造 `sideCtx := &agentcore.AgentContext{Messages: append([]agentcore.Message(nil), deps.agentCtx.Messages...)}`（深拷贝切片头，元素为值/接口，注意不要回写）。侧线程的提问/回答只追加到 `sideCtx.Messages`，永不赋回 `deps.agentCtx`。
 - **进程级侧线程状态：** 在 `replDeps` 或 REPL 循环局部维护 `lastBtw *agentcore.AgentContext`（最近一次侧线程），供裸 `/btw` 重开；会话切换（`/fork`/`/clone`/`/import`）时清空。
 - **运行配置：** 复用 `runtime.RunConfig`/`LoopConfig`（参考 `streamRun` at `repl.go:360`），但 `Model`/`ThinkingLevel`/`Provider` 取自侧线程配置解析结果。
-- **配置文件：** 对标 pi-btw 的 `pi-btw.json`，在 pigo 中放置于 pigo 配置目录（如 `$PIGO_DIR/btw.json` 或 `~/.pigo/btw.json`，最终路径以项目现有配置目录约定为准）。字段：`{"model": "<id>", "thinkingLevel": "off|minimal|low|medium|high|xhigh"}`。文件可选、不自动创建、每次调用读取。
+- **配置文件：** 对标 pi-btw 的 `pi-btw.json`，在 pigo 中放置于 pigo 配置目录（如 `$AIKOTA_DIR/btw.json` 或 `~/.aikota/btw.json`，最终路径以项目现有配置目录约定为准）。字段：`{"model": "<id>", "thinkingLevel": "off|minimal|low|medium|high|xhigh"}`。文件可选、不自动创建、每次调用读取。
 - **模型解析：** 复用 `resolveProvider`（见 `interactive.go:457`）解析覆盖 model；失败时告警并回落。
 - **取消机制：** 复用 `setCancel` + `context.WithCancel`，与 `streamRun`/`runGoal` 一致，确保 `Ctrl+C` 行为统一。
 - **命令登记：** 在 `registerLiveCommands`（`interactive.go:448`）的"仅供 /help 列出"循环中加入 `{"btw", "ask a quick side question without touching the main conversation: /btw [question]"}`；实际逻辑在主循环拦截。
@@ -135,5 +135,5 @@
 
 - 侧线程是否允许调用副作用工具（bash/write/edit）？若允许，是否沿用主会话信任确认？（本期建议：沿用主会话工具策略，不单独设计。）
 - 行式实现 vs 全屏 overlay：pigo 当前无全屏 TUI，`PgUp/PgDn` 滚动浏览是否本期实现，还是留作增强？
-- 配置文件的确切路径与文件名需与项目现有配置目录约定对齐（`$PIGO_DIR` 具体环境变量名待确认）。
+- 配置文件的确切路径与文件名需与项目现有配置目录约定对齐（`$AIKOTA_DIR` 具体环境变量名待确认）。
 - 会话切换时清空 `lastBtw`，还是按 sessionID 分别保留？（本期建议：进程内单一 `lastBtw`，切换即清空，最简。）

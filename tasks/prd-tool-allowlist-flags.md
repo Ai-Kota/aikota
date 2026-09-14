@@ -2,7 +2,7 @@
 
 ## 1. Introduction/Overview
 
-pigo 目前对"模型能用哪些工具"只有一个**全有或全无**的开关：`--no-tools`（`cmd/pigo/main.go:166`）。要么全部内置工具可用，要么一个都不给。中间态完全缺失——用户没法说"这次只准读文件，别碰 bash"，也没法说"随便用，就是别写文件"。
+pigo 目前对"模型能用哪些工具"只有一个**全有或全无**的开关：`--no-tools`（`cmd/aikota/main.go:166`）。要么全部内置工具可用，要么一个都不给。中间态完全缺失——用户没法说"这次只准读文件，别碰 bash"，也没法说"随便用，就是别写文件"。
 
 对标 Claude Code，它提供 `--allowedTools` / `--disallowedTools` 做工具级准入控制。pigo 侧其实已经有现成的地基：
 
@@ -106,11 +106,11 @@ pigo 目前对"模型能用哪些工具"只有一个**全有或全无**的开关
 
 **Acceptance Criteria:**
 - [ ] `FileConfig`（`internal/cli/config/config.go:30`）新增 `AllowedTools []string \`toml:"allowed_tools"\`` 与 `DisallowedTools []string \`toml:"disallowed_tools"\``
-- [ ] `applyFileConfig`（`cmd/pigo/main.go` 内）遵循既有精度覆盖：仅当对应 flag 未被显式传入（`changed("allowed-tools")` 为 false）时才用文件值
+- [ ] `applyFileConfig`（`cmd/aikota/main.go` 内）遵循既有精度覆盖：仅当对应 flag 未被显式传入（`changed("allowed-tools")` 为 false）时才用文件值
 - [ ] CLI 传入时**整体替换**文件值，而非与文件值合并——合并语义会让"我想放宽"变成"放不宽"
 - [ ] 配置缺失（零值）时行为与当前完全一致
 - [ ] `config.toml.example` 补上两个键的注释示例，说明黑名单优先
-- [ ] 单元测试参照 `TestApplyFileConfig_FillsUnsetFlags` / `TestApplyFileConfig_CLIWins`（`cmd/pigo/main_test.go:179,225`）的模式，覆盖填充与 CLI 优先两种情形
+- [ ] 单元测试参照 `TestApplyFileConfig_FillsUnsetFlags` / `TestApplyFileConfig_CLIWins`（`cmd/aikota/main_test.go:179,225`）的模式，覆盖填充与 CLI 优先两种情形
 - [ ] Typecheck/lint 通过
 
 ### US-008: 文档更新
@@ -149,12 +149,12 @@ pigo 目前对"模型能用哪些工具"只有一个**全有或全无**的开关
 
 - **不支持参数级细粒度匹配**：`Bash(git log:*)`、`Read(src/**)` 这类 Claude Code 语法本期不做。它需要一套独立的参数匹配器，并且必须在 `BeforeToolCall` 层拦截调用参数而非在注册层过滤工具，是另一个量级的工程。本期写成该形式一律按未知工具名报错。
 - **不引入 `--permission-mode`**：`default` / `acceptEdits` / `bypassPermissions` / `plan` 这套模式概念不做，`--approve` 保持现状。
-- **不做环境变量入口**：不引入 `PIGO_ALLOWED_TOOLS`。
+- **不做环境变量入口**：不引入 `AIKOTA_ALLOWED_TOOLS`。
 - **不做 TUI 运行时切换**：不新增 `/tools` 斜杠命令，边界在进程启动时确定、整个会话不变。
 - **不改动技能层的 `allowed-tools`**：`internal/runtime/skills.go` 的技能 frontmatter 过滤保持原样，两者独立。本期不定义"CLI 边界与技能子 Agent 边界如何叠加"，因为子 Agent 从父工具集派生，天然继承 CLI 边界即可。
 - **不改动 hooks 机制**：`PreToolUse` hook 的拦截能力与本特性正交，不做整合。
 - **不改动 `SideEffectTools` 分类**：副作用工具的判定表保持原样。
-- **不做持久化的项目级边界**：不引入 `.pigo/` 项目层的工具边界配置，只做全局 `config.toml`。
+- **不做持久化的项目级边界**：不引入 `.aikota/` 项目层的工具边界配置，只做全局 `config.toml`。
 
 ## 6. Design Considerations
 
@@ -163,7 +163,7 @@ pigo 目前对"模型能用哪些工具"只有一个**全有或全无**的开关
 复用点：
 - `internal/runtime/skills.go:357` 的 `filterToolsByName` 已实现"空列表即不限制"的白名单语义，`ApplyToolPolicy` 的 allow 分支可直接复用其逻辑或以其为原型（注意它当前是大小写敏感的，本期需要不敏感版本）。
 - `internal/runtime/skills.go:96` 的 `stringList.UnmarshalYAML` 已实现"标量按逗号切分"的容错，FR-4 的 CLI 侧切分逻辑与它形状相同，可考虑提取共用的 `splitAndTrim` 辅助函数避免两处实现漂移。
-- 错误退出遵循 `--cwd` 的既有模式（`cmd/pigo/main.go:216-220`）：向 stderr 打印 `pigo: <flag>: <reason>` 后 `os.Exit(2)`。
+- 错误退出遵循 `--cwd` 的既有模式（`cmd/aikota/main.go:216-220`）：向 stderr 打印 `pigo: <flag>: <reason>` 后 `os.Exit(2)`。
 
 ## 7. Technical Considerations
 

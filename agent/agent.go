@@ -3,13 +3,13 @@ package agent
 import (
 	"context"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/provider"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
-// Session is a single, stateful pigo agent conversation. Create one with New,
+// Session is a single, stateful aikota agent conversation. Create one with New,
 // drive it with Prompt or Stream, and release its resources with Close. The
 // conversation history accumulates across calls, so follow-up prompts see the
 // earlier exchange; call Reset to start over on the same session.

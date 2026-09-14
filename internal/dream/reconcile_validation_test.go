@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/memory"
 )
 
 // searchHits reopens the memory store that Runner.Run built at

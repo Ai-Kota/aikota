@@ -18,7 +18,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"gopkg.in/yaml.v3"
 )
 

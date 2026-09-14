@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to **pigo** are documented in this file.
+All notable changes to **aikota** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-pigo is a Go re-implementation of the [pi](https://pi.dev) AI coding agent — a
+aikota is a Go re-implementation of the [pi](https://pi.dev) AI coding agent — a
 command-line coding assistant with both a headless script mode and an
 interactive REPL/TUI.
 
@@ -21,18 +21,18 @@ interactive REPL/TUI.
   confirmation gate — `--approve` waives confirmation prompts but cannot widen
   the boundary. Also configurable as `allowed_tools` / `disallowed_tools` in
   `config.toml`.
-- **Self-update**: `pigo update` with no package name (or flags-only calls such
-  as `pigo update --check`) now upgrades the pigo binary itself to the latest
+- **Self-update**: `aikota update` with no package name (or flags-only calls such
+  as `aikota update --check`) now upgrades the aikota binary itself to the latest
   GitHub Release, replacing the executable in place (with a `sudo` hint when the
   target path needs elevated permissions). (#465, #466, #468)
 - **Startup upgrade hint**: the TUI banner shows the version row and, when a
-  newer release is available, a `Run pigo update to upgrade` hint backed by a
+  newer release is available, a `Run aikota update to upgrade` hint backed by a
   24h cached background release check. (#467)
 
 ### Changed
-- **`pigo update` semantics**: a no-argument `pigo update` no longer updates
+- **`aikota update` semantics**: a no-argument `aikota update` no longer updates
   every installed package; it now self-updates the binary. Update packages
-  individually with `pigo update <name>`. (#468)
+  individually with `aikota update <name>`. (#468)
 - Internationalized the codebase: all user-facing strings and internal comments
   were translated from Chinese to English.
 - Documented self-update and the revised `update` semantics in the README and
@@ -58,7 +58,7 @@ interactive REPL/TUI.
   resolver (#439), terminal Unicode QR renderer (#440), HTTP + WebSocket server
   (#441), a REPL bridge seam (#442), a responsive web SPA (#444), and REPL
   wiring with server hardening. (#443, #445)
-- `--cwd`/`-C` flag to run pigo as if launched in a given working directory.
+- `--cwd`/`-C` flag to run aikota as if launched in a given working directory.
 - `/think` slash command to switch reasoning effort at runtime.
 
 ### Fixed
@@ -108,21 +108,21 @@ interactive REPL/TUI.
 - **Prompt templates**: shell-style arg tokenizer (#344) and expansion engine
   (#332) with tiered slash-command priority (#335), argument-hint frontmatter
   (#334), `--prompt-template`/`--no-prompt-templates` flags (#339), settings-tier
-  `prompts` from `config.toml` (#338), project-level `.pigo/prompts` when trusted
-  (#337), `~/.pigo/prompts` alongside legacy `~/.pigo/commands` (#336), and
+  `prompts` from `config.toml` (#338), project-level `.aikota/prompts` when trusted
+  (#337), `~/.aikota/prompts` alongside legacy `~/.aikota/commands` (#336), and
   autocomplete/`/help` listings with argument-hint and source tier. (#340, #341)
-- Install prompt packages to `~/.pigo/prompts`. (#342)
-- Honor `~/.config/pigo/config.toml` over built-in defaults.
+- Install prompt packages to `~/.aikota/prompts`. (#342)
+- Honor `~/.config/aikota/config.toml` over built-in defaults.
 
 ### Changed
-- Large CLI refactor: `cmd/pigo/main.go` converged to a thin entry, with the REPL,
+- Large CLI refactor: `cmd/aikota/main.go` converged to a thin entry, with the REPL,
   `/status`, `/btw`, `/goal`, headless/subagent paths, pkgcmd, run-assembly,
   provider resolution, config loading, trust glue, and UI helpers each migrated
   into dedicated `internal/cli/*` packages. (#357–#369)
 
 ### Fixed
 - Include the model in the Anthropic Messages request body.
-- Gitignore pigo config files to avoid committing API keys.
+- Gitignore aikota config files to avoid committing API keys.
 
 ## [0.3.6] - 2026-07-27
 
@@ -233,7 +233,7 @@ interactive REPL/TUI.
 
 ## [0.1.0] - 2026-07-20
 
-Initial public release. pigo lands as a working Go re-implementation of the pi
+Initial public release. aikota lands as a working Go re-implementation of the pi
 coding agent.
 
 ### Added
@@ -252,7 +252,7 @@ coding agent.
 - **Model & auth**: a model registry and provider directory (#31), plus OAuth
   and API-key resolution. (#32)
 - **Security**: an in-process sandbox gate and secret redaction. (#44)
-- **Run modes**: a headless/stdio mode and the `pigo` CLI entry (#39),
+- **Run modes**: a headless/stdio mode and the `aikota` CLI entry (#39),
   headless/stream-json runs carrying a session id with resume support (#176),
   and `--system-prompt` / `--append-system-prompt`. (#180)
 - **System prompt & config**: system-prompt assembly with `AGENTS.md` injection
@@ -270,7 +270,7 @@ coding agent.
 - **Package manager**: a lockfile and install-dir conventions (#154), `npm:<name>`
   reference parsing (#155), npm detection and content fetch (#156), pi package
   classification (#157), distribution of extensions (#158), skills (#159),
-  prompts/commands (#160), and themes (#161), plus `pigo install` (#162),
+  prompts/commands (#160), and themes (#161), plus `aikota install` (#162),
   `list` + `uninstall` (#163), and `update`. (#164)
 - **Interactive TUI** (bubbletea v2) with a lipgloss theme layer, width-aware
   rendering, Markdown output, streaming spinners, tool-call cards, viewport
@@ -281,22 +281,22 @@ coding agent.
   `provider`, `agenttool`, and `runtime` leaf packages with a verified layering
   DAG. (#74–#79)
 
-[Unreleased]: https://github.com/smallnest/pigo/compare/v0.4.3...HEAD
-[0.4.3]: https://github.com/smallnest/pigo/compare/v0.4.2...v0.4.3
-[0.4.2]: https://github.com/smallnest/pigo/compare/v0.4.1...v0.4.2
-[0.4.1]: https://github.com/smallnest/pigo/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/smallnest/pigo/compare/v0.3.7...v0.4.0
-[0.3.7]: https://github.com/smallnest/pigo/compare/v0.3.6...v0.3.7
-[0.3.6]: https://github.com/smallnest/pigo/compare/v0.3.5...v0.3.6
-[0.3.5]: https://github.com/smallnest/pigo/compare/v0.3.4...v0.3.5
-[0.3.4]: https://github.com/smallnest/pigo/compare/v0.3.3...v0.3.4
-[0.3.3]: https://github.com/smallnest/pigo/compare/v0.3.2...v0.3.3
-[0.3.2]: https://github.com/smallnest/pigo/compare/v0.3.1...v0.3.2
-[0.3.1]: https://github.com/smallnest/pigo/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/smallnest/pigo/compare/v0.2.1...v0.3.0
-[0.2.1]: https://github.com/smallnest/pigo/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/smallnest/pigo/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/smallnest/pigo/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/smallnest/pigo/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/smallnest/pigo/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Ai-Kota/aikota/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/Ai-Kota/aikota/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/Ai-Kota/aikota/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/Ai-Kota/aikota/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/Ai-Kota/aikota/compare/v0.3.7...v0.4.0
+[0.3.7]: https://github.com/Ai-Kota/aikota/compare/v0.3.6...v0.3.7
+[0.3.6]: https://github.com/Ai-Kota/aikota/compare/v0.3.5...v0.3.6
+[0.3.5]: https://github.com/Ai-Kota/aikota/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/Ai-Kota/aikota/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/Ai-Kota/aikota/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/Ai-Kota/aikota/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/Ai-Kota/aikota/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/Ai-Kota/aikota/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/Ai-Kota/aikota/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/Ai-Kota/aikota/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/Ai-Kota/aikota/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/Ai-Kota/aikota/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/Ai-Kota/aikota/releases/tag/v0.1.0
 

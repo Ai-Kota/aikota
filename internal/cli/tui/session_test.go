@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/session"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/session"
 )
 
 // newTestStore opens a session store rooted at a temp dir so persistence/resume
-// can be exercised without touching ~/.pigo.
+// can be exercised without touching ~/.aikota.
 func newTestStore(t *testing.T) *session.Store {
 	t.Helper()
 	store, err := session.NewStore(t.TempDir())

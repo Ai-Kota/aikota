@@ -25,10 +25,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/compaction"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // nowMillis returns the current Unix time in milliseconds, the timestamp unit
@@ -434,11 +434,11 @@ func writeCompactionCheckpoint(ctx context.Context, msgs agentcore.MessageList, 
 	}
 	cp, err := BuildCheckpoint(ctx, msgs[:watermark], watermark, time.Now(), summarize)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "pigo: checkpoint: build for session %s: %v\n", cfg.SessionID, err)
+		fmt.Fprintf(os.Stderr, "aikota: checkpoint: build for session %s: %v\n", cfg.SessionID, err)
 		return
 	}
 	if err := WriteCheckpoint(cfg.SessionID, cfg.MemoryRoot, cp); err != nil {
-		fmt.Fprintf(os.Stderr, "pigo: checkpoint: write for session %s: %v\n", cfg.SessionID, err)
+		fmt.Fprintf(os.Stderr, "aikota: checkpoint: write for session %s: %v\n", cfg.SessionID, err)
 	}
 }
 

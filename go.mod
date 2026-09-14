@@ -1,4 +1,4 @@
-module github.com/smallnest/pigo
+module github.com/Ai-Kota/aikota
 
 go 1.27rc1
 

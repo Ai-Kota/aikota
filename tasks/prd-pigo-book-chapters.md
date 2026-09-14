@@ -2,7 +2,7 @@
 
 ## Introduction
 
-《用 Go 从零构建 Pi Agent》以 [pigo](https://github.com/smallnest/pigo) 源码为标本，庖丁解牛式逐层拆解一个命令行 AI Agent。引言（#202）与第 1 章（#204）已完成并入库，构建管线（pandoc → tectonic → ElegantBook）已跑通。
+《用 Go 从零构建 Pi Agent》以 [pigo](https://github.com/Ai-Kota/aikota) 源码为标本，庖丁解牛式逐层拆解一个命令行 AI Agent。引言（#202）与第 1 章（#204）已完成并入库，构建管线（pandoc → tectonic → ElegantBook）已跑通。
 
 本 PRD 覆盖**剩余全部正文写作单元**：第 2–10 章共 9 章正文 + 后记，合计 10 个独立可交付单元。每章锚定 `outline.md` 中列出的真实源码包与关键文件，读者可对照源码逐行印证。写作规范、图表/实验盒子/交叉引用约定沿用第 1 章既定模式（见 `book/README.md`「写作约定」）。
 
@@ -79,7 +79,7 @@
 **Description:** 作为读者，我想理解首次进入目录的信任决策与受信状态管理如何作为工具执行前的安全闸门。
 
 **Acceptance Criteria:**
-- [ ] 新建 `book/chapter8.md`，锚定 `internal/trust/manager.go` 与 `cmd/pigo/trust.go`
+- [ ] 新建 `book/chapter8.md`，锚定 `internal/trust/manager.go` 与 `cmd/aikota/trust.go`
 - [ ] 覆盖：首次进入项目目录的信任决策流程；受信状态持久化与 CLI 呈现；作为 Bash/工具执行前安全闸门的作用
 - [ ] 标题无手写编号
 - [ ] 代码引用与仓库一致
@@ -89,7 +89,7 @@
 **Description:** 作为读者，我想理解进程隔离的子 Agent 与基于 JSON-RPC 的父子通信。
 
 **Acceptance Criteria:**
-- [ ] 新建 `book/chapter9.md`，锚定 `internal/runtime/subagent.go`、`cmd/pigo/subagent_rpc.go`、`internal/jsonrpc/{message,transport}.go`
+- [ ] 新建 `book/chapter9.md`，锚定 `internal/runtime/subagent.go`、`cmd/aikota/subagent_rpc.go`、`internal/jsonrpc/{message,transport}.go`
 - [ ] 覆盖：`pigo --subagent-rpc` 子进程侧；JSON-RPC 2.0 over stdio 的 `subagent/run` 请求与结果回传；父侧 SubAgentTool 驱动与事件汇聚
 - [ ] 标题无手写编号
 - [ ] 代码引用与仓库一致
@@ -99,7 +99,7 @@
 **Description:** 作为读者，我想理解 Skills、斜杠命令、Plugins 与包管理器如何让 Agent 可插拔生长。
 
 **Acceptance Criteria:**
-- [ ] 新建 `book/chapter10.md`，锚定 `internal/runtime/{skills,slashcommand}.go`、`internal/plugin/{plugin,manager,manifest,events}.go`、`internal/pkgmgr/{install,fetch,distribute,classify,lockfile,ref}.go`、`cmd/pigo/pkgcmd.go`
+- [ ] 新建 `book/chapter10.md`，锚定 `internal/runtime/{skills,slashcommand}.go`、`internal/plugin/{plugin,manager,manifest,events}.go`、`internal/pkgmgr/{install,fetch,distribute,classify,lockfile,ref}.go`、`cmd/aikota/pkgcmd.go`
 - [ ] 覆盖：Skills 与斜杠命令挂载；Plugin 清单/管理器/事件系统；包管理器拉取/分类/分发/锁文件
 - [ ] 标题无手写编号
 - [ ] 代码引用与仓库一致

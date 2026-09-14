@@ -181,7 +181,7 @@ pigo 是用 Go 复刻的 pi coding agent。当前 pigo 已具备 agent loop、7 
 - [ ] 新增 `internal/plugin` 包，定义插件协议：pigo 以子进程启动插件可执行文件，走 stdio JSON-RPC（复用 US-014 的 JSON-RPC 基础设施）
 - [ ] 握手阶段插件声明其提供的 tools（name/description/schema）与 slash commands
 - [ ] 插件注册的工具被调用时，pigo 通过 RPC 转发参数、回传结果
-- [ ] 插件从配置目录（如 `~/.pigo/plugins/`）自动发现
+- [ ] 插件从配置目录（如 `~/.aikota/plugins/`）自动发现
 - [ ] 插件崩溃被隔离：不影响主进程，工具调用返回错误
 - [ ] `go test ./internal/plugin/...` 通过
 
@@ -199,7 +199,7 @@ pigo 是用 Go 复刻的 pi coding agent。当前 pigo 已具备 agent loop、7 
 **Description:** 作为用户，我希望首次在某个项目目录运行 pigo 时被询问是否信任该目录，信任决策被持久化，避免在不受信目录自动执行工具。
 
 **Acceptance Criteria:**
-- [ ] 新增 `internal/trust` 包，对标 pi trust-manager：信任存储为 `path → bool|null` 的 JSON 文件（`~/.pigo/trust.json`）
+- [ ] 新增 `internal/trust` 包，对标 pi trust-manager：信任存储为 `path → bool|null` 的 JSON 文件（`~/.aikota/trust.json`）
 - [ ] 提供 `NearestTrustDecision(cwd)`：向上查找最近的已保存信任决策
 - [ ] 首次进入未决策目录时，REPL 询问「信任 / 仅本次 / 拒绝」，并可选择保存到该目录或父目录
 - [ ] `/trust` 命令保存当前项目信任决策
@@ -255,7 +255,7 @@ pigo 是用 Go 复刻的 pi coding agent。当前 pigo 已具备 agent loop、7 
 ## Technical Considerations
 
 - **压缩**（#1）：新增 `internal/compaction`，纯函数为主（EstimateTokens / ShouldCompact / FindCutPoint / Summarize），I/O 交给 `session` 与 `runtime`；接入点是 `runtime.StartRun` 每轮末尾。复用 `provider.ModelInfo.ContextWindow` 与 `agentcore.Usage`。
-- **会话管理**（#5）：在现有 `internal/session` 上加 id/parentId 与迁移；`SchemaVersion` 已有版本钩子。命令加在 `internal/runtime/slashcommand.go` + `cmd/pigo/repl.go`。
+- **会话管理**（#5）：在现有 `internal/session` 上加 id/parentId 与迁移；`SchemaVersion` 已有版本钩子。命令加在 `internal/runtime/slashcommand.go` + `cmd/aikota/repl.go`。
 - **多模态**（#6）：扩展 `agentcore.Content`，两家 provider（`internal/provider/anthropic.go`、`openai.go`）分别编码。
 - **JSON-RPC 复用**（#2/#7/#8/#19）：MCP client、插件协议、process 子 agent 共用同一套 stdio JSON-RPC 2.0 基础设施，建议先抽 `internal/jsonrpc` 再被三者复用，降低重复。
 - **工具**（#3/#4）：全部注册进现有 `internal/agenttool` registry，遵循现有 Tool 接口（Name/Schema/Execute）。

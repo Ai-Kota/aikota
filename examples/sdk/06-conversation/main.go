@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/smallnest/pigo/agent"
+	"github.com/Ai-Kota/aikota/agent"
 )
 
 func main() {

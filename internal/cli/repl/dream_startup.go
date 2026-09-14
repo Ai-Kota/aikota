@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/smallnest/pigo/internal/cli/ui"
-	"github.com/smallnest/pigo/internal/dream"
+	"github.com/Ai-Kota/aikota/internal/cli/ui"
+	"github.com/Ai-Kota/aikota/internal/dream"
 )
 
 // dreamStartupScheduler owns the startup auto-trigger decision. It is stateless

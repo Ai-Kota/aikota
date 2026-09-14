@@ -2,7 +2,7 @@
 
 ## Introduction
 
-今天 pigo 把每个 skill 只注册成了 `/skill-name` 斜杠命令（见 `cmd/pigo/interactive.go` 中 `loadSkillCommands` 只调用 `s.SlashCommand()`）。模型的系统提示里从不出现 skill 的存在，因此模型无法根据任务自主选用 skill——用户必须手动敲 `/weather` 才能触发 weather skill。
+今天 pigo 把每个 skill 只注册成了 `/skill-name` 斜杠命令（见 `cmd/aikota/interactive.go` 中 `loadSkillCommands` 只调用 `s.SlashCommand()`）。模型的系统提示里从不出现 skill 的存在，因此模型无法根据任务自主选用 skill——用户必须手动敲 `/weather` 才能触发 weather skill。
 
 pi agent 已经解决了这个问题：它把每个 skill 的 `name / description / location`（SKILL.md 的绝对路径）注入系统提示的 `<available_skills>` 块，并告诉模型"当任务匹配某个 skill 的描述时，用 read 工具加载它的文件并按其指示执行"。这是一种**渐进式披露（progressive disclosure）**——只在提示里放元数据，正文由模型按需读取，上下文开销最小。
 
@@ -73,8 +73,8 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 **Description:** 作为用户，我在实际运行 pigo 时，加载到的 skills 能真正出现在系统提示里并被模型调用。
 
 **Acceptance Criteria:**
-- [ ] `cmd/pigo/run.go` 的 `setupAgentEnv` 在构建工具集后，把已加载的 skills 与 read 工具可用性传入 `BuildSystemPrompt`（注意当前 `BuildSystemPrompt` 调用早于 `builtinTools`，需调整装配顺序或先探测工具集）
-- [ ] skills 从 `skillsDir()`（`~/.agents/skills` 或 `PIGO_SKILLS_DIR`）经 `LoadSkillsDir` 加载，与斜杠命令共用同一份加载结果，避免重复读盘
+- [ ] `cmd/aikota/run.go` 的 `setupAgentEnv` 在构建工具集后，把已加载的 skills 与 read 工具可用性传入 `BuildSystemPrompt`（注意当前 `BuildSystemPrompt` 调用早于 `builtinTools`，需调整装配顺序或先探测工具集）
+- [ ] skills 从 `skillsDir()`（`~/.agents/skills` 或 `AIKOTA_SKILLS_DIR`）经 `LoadSkillsDir` 加载，与斜杠命令共用同一份加载结果，避免重复读盘
 - [ ] 手动验证：在 skills 目录放一个 weather skill，不输入 `/weather`，向模型提出天气相关请求，模型自主 read 该 SKILL.md 并按其指示执行
 - [ ] 手动验证：`--no-skills` 时系统提示不含 `<available_skills>`
 - [ ] Typecheck/lint 通过
@@ -117,13 +117,13 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 - 不改变 skill body 的执行语义（body 仍作为斜杠命令展开或由模型读取后遵循，不做二次编排）。
 - 不实现项目级 `.pi/skills` 与用户级目录的多源合并/冲突检测（pi 有，但超出本次范围，可后续迭代）。
 - 不实现 `.gitignore` 式忽略规则（pi 的 ignore matcher 不在本次范围）。
-- 不改变 skills 的加载目录（仍为 `~/.agents/skills` / `PIGO_SKILLS_DIR`）。
+- 不改变 skills 的加载目录（仍为 `~/.agents/skills` / `AIKOTA_SKILLS_DIR`）。
 - 不做遥测、指标或 UI 层的 skill 调用可视化。
 
 ## Technical Considerations
 
 - **注入位置**：`internal/runtime/prompt.go` 的 `BuildSystemPrompt` 是唯一的系统提示装配点，在 append 之后追加 skills 块最贴合 pi。
-- **装配顺序**：`cmd/pigo/run.go:59` 当前先 `BuildSystemPrompt` 再 `builtinTools`（第 68 行）。要判断 read 工具是否可用，需要先确定工具集，或用一个轻量探测（检查是否 `noTools` 且工具名单含 `read`）。read 工具名为 `"read"`（`internal/agenttool/read_tool.go`）。
+- **装配顺序**：`cmd/aikota/run.go:59` 当前先 `BuildSystemPrompt` 再 `builtinTools`（第 68 行）。要判断 read 工具是否可用，需要先确定工具集，或用一个轻量探测（检查是否 `noTools` 且工具名单含 `read`）。read 工具名为 `"read"`（`internal/agenttool/read_tool.go`）。
 - **加载复用**：`LoadSkillsDir`（`internal/runtime/skills.go`）已返回 `[]*Skill`，斜杠命令与提示注入应共用同一次加载结果，避免重复 IO。
 - **对齐 pi 的引导语**：建议直接沿用 pi 的措辞与相对路径解析说明（`formatSkillsForPrompt`，skills.ts:342-360），保证模型行为一致。
 - **绝对路径**：`Skill.Path` 已保留源文件路径；`<location>` 用其绝对路径。
@@ -140,4 +140,4 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 
 - `BuildSystemPrompt` 与工具集构建的顺序调整，是就地探测 read 工具、还是把工具集构建提前？（实现时按最小改动决定）
 - 是否需要在 skill 首次被模型自动调用时给用户一条可见提示（pi 有 `skill-invocation-message` 组件）？本次默认不做，留待迭代。
-- 未来是否支持项目级 `.pigo/skills` 目录与多源合并？
+- 未来是否支持项目级 `.aikota/skills` 目录与多源合并？

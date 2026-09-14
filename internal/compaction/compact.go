@@ -9,8 +9,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // CompactionDetails records the files touched in the compacted history, stored
@@ -26,7 +26,7 @@ type CompactionDetails struct {
 // CompactionResult is the outcome of a compaction: the summary text (with file
 // metadata appended), the index where retained history begins, the estimated
 // tokens before compaction, and the extracted file details. Mirrors pi's
-// CompactionResult, adapted to pigo's flat message list (index vs entry id).
+// CompactionResult, adapted to aikota's flat message list (index vs entry id).
 type CompactionResult struct {
 	// Summary is the structured summary that replaces the compacted history.
 	Summary string

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // A recorded OpenAI Chat Completions SSE stream covering a text delta followed

@@ -14,9 +14,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/hooks"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/hooks"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // blockingPreToolUse is a hook set whose PreToolUse hook exits 2 (Claude Code

@@ -14,10 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli/run"
-	"github.com/smallnest/pigo/internal/jsonrpc"
-	"github.com/smallnest/pigo/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli/run"
+	"github.com/Ai-Kota/aikota/internal/jsonrpc"
+	"github.com/Ai-Kota/aikota/internal/runtime"
 )
 
 // TestFilterBuiltinTools verifies the subprocess tool filter: an empty name

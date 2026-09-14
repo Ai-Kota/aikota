@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/cli/btw"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/cli/btw"
 )
 
 // TestBtwDoesNotPolluteMainContext verifies that "/btw <q>" launches a run

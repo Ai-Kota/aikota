@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 // policyTool is a minimal AgentTool whose only meaningful property is its name —

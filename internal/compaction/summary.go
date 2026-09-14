@@ -2,7 +2,7 @@
 // conversation serializer, file-operation extraction, and GenerateSummary,
 // which drives a provider stream to turn compacted history into a structured
 // checkpoint summary. It mirrors pi's harness/compaction/compaction.ts prompts
-// and utils.ts helpers, adapted to pigo's flat message list and Provider stream.
+// and utils.ts helpers, adapted to aikota's flat message list and Provider stream.
 package compaction
 
 import (
@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // SUMMARIZATION_SYSTEM_PROMPT instructs the model to only emit the structured

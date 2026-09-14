@@ -95,12 +95,12 @@
 
 ## Technical Considerations
 
-- 版本、commit、date 已由 goreleaser 通过 `-ldflags -X main.version=...` 注入（见 cmd/pigo/main.go:42、.goreleaser.yaml），自更新与提示逻辑读取这些变量。
+- 版本、commit、date 已由 goreleaser 通过 `-ldflags -X main.version=...` 注入（见 cmd/aikota/main.go:42、.goreleaser.yaml），自更新与提示逻辑读取这些变量。
 - 归档命名规则须与 .goreleaser.yaml 的 `name_template` 严格一致，建议抽成常量或与 install.sh 保持单一事实来源。
 - 自替换需处理"正在运行的二进制被替换"：Unix 上对已打开的可执行文件 rename 覆盖是安全的；实现应先写同目录临时文件再 `os.Rename` 以保证原子性和同一文件系统。
 - 分发建议放在新包（如 `internal/selfupdate`），供 `pkgcmd`/main 的 update 分支与启动横幅检查复用。
 - 启动横幅信息面板在 internal/cli/tui/banner.go，新增版本行与高亮沿用现有 lipgloss 样式约定。
-- 启动检查须异步执行、结果落地缓存（如 `~/.pigo/update-check.json`，记录检查时间与最新版本），命中缓存则不发网络请求。
+- 启动检查须异步执行、结果落地缓存（如 `~/.aikota/update-check.json`，记录检查时间与最新版本），命中缓存则不发网络请求。
 - 网络与校验逻辑可参考 install.sh 已验证的 URL/命名约定。
 
 ## Success Metrics
@@ -114,5 +114,5 @@
 1. `pigo update --check`（只检查不下载）是否需要？用户本期选择"仅自动更新"，是否保留一个 `--check` 只读标志作为便利项？
 2. 是否需要 `pigo update --version vX.Y.Z` 指定版本（含降级）？
 3. 是否需要环境变量/配置项关闭启动横幅的新版本检查（如离线或 CI 环境）？
-4. 缓存文件位置 `~/.pigo/` 是否与现有配置/缓存目录约定一致？需确认。
+4. 缓存文件位置 `~/.aikota/` 是否与现有配置/缓存目录约定一致？需确认。
 5. Windows 下自替换（无法覆盖正在运行的 .exe）是否需要"改名旧文件 + 写新文件"的特殊路径？

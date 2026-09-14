@@ -17,14 +17,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/cli"
-	"github.com/smallnest/pigo/internal/cli/prompts"
-	"github.com/smallnest/pigo/internal/plugin"
-	"github.com/smallnest/pigo/internal/provider"
-	rt "github.com/smallnest/pigo/internal/runtime"
-	"github.com/smallnest/pigo/internal/session"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/cli"
+	"github.com/Ai-Kota/aikota/internal/cli/prompts"
+	"github.com/Ai-Kota/aikota/internal/plugin"
+	"github.com/Ai-Kota/aikota/internal/provider"
+	rt "github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/session"
 )
 
 // cmdPluginMain is a standalone plugin that declares one "hello" slash command
@@ -144,7 +144,7 @@ func loadTestManager(t *testing.T) *plugin.Manager {
 // TestBuildSlashRegistryRegistersPluginCommand verifies a discovered plugin
 // command is registered as a resolvable slash command in the registry.
 func TestBuildSlashRegistryRegistersPluginCommand(t *testing.T) {
-	t.Setenv("PIGO_HOME", t.TempDir())
+	t.Setenv("AIKOTA_HOME", t.TempDir())
 	mgr := loadTestManager(t)
 	defer mgr.Close()
 
@@ -177,7 +177,7 @@ func TestBuildSlashRegistryRegistersPluginCommand(t *testing.T) {
 // wins over a plugin command (existing precedence preserved): the plugin command
 // is shadowed and the built-in's behavior is what resolves.
 func TestBuiltinWinsOverPluginCommand(t *testing.T) {
-	t.Setenv("PIGO_HOME", t.TempDir())
+	t.Setenv("AIKOTA_HOME", t.TempDir())
 	mgr := loadTestManager(t)
 	defer mgr.Close()
 
@@ -205,7 +205,7 @@ func TestBuiltinWinsOverPluginCommand(t *testing.T) {
 // agent turn (so the fake provider is called once and the injected prompt lands
 // in the conversation history).
 func TestREPLPluginCommandInjectsPrompt(t *testing.T) {
-	t.Setenv("PIGO_HOME", t.TempDir())
+	t.Setenv("AIKOTA_HOME", t.TempDir())
 	mgr := loadTestManager(t)
 	defer mgr.Close()
 

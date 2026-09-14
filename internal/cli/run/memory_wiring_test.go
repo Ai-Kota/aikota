@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/agenttool"
-	"github.com/smallnest/pigo/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agenttool"
+	"github.com/Ai-Kota/aikota/internal/memory"
 )
 
 // TestOpenMemoryStoreDisabled verifies memory.enabled=false yields (nil, nil):
@@ -27,11 +27,11 @@ func TestOpenMemoryStoreDisabled(t *testing.T) {
 	}
 }
 
-// TestMemoryDirHonorsPIGOHome verifies MemoryDir roots the store at
-// $PIGO_HOME/memory when the override is set.
-func TestMemoryDirHonorsPIGOHome(t *testing.T) {
+// TestMemoryDirHonorsAIKOTAHome verifies MemoryDir roots the store at
+// $AIKOTA_HOME/memory when the override is set.
+func TestMemoryDirHonorsAIKOTAHome(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("PIGO_HOME", dir)
+	t.Setenv("AIKOTA_HOME", dir)
 	if got, want := MemoryDir(), filepath.Join(dir, "memory"); got != want {
 		t.Errorf("MemoryDir() = %q, want %q", got, want)
 	}

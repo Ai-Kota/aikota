@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallnest/pigo/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
 
 func runEdit(t *testing.T, tool *EditTool, args map[string]any) agentcore.AgentToolResult {

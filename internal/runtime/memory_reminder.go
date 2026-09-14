@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/memory"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/memory"
 )
 
 // defaultMemoryReminderMaxChars is the per-turn character budget for the

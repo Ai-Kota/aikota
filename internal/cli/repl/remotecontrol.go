@@ -18,9 +18,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/smallnest/pigo/internal/agentcore"
-	"github.com/smallnest/pigo/internal/remotecontrol"
-	"github.com/smallnest/pigo/internal/trust"
+	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/remotecontrol"
+	"github.com/Ai-Kota/aikota/internal/trust"
 )
 
 // teeWriter is an io.Writer that always forwards to a primary writer (the
@@ -212,7 +212,7 @@ func bridgeBeforeToolCall(mgr *trust.Manager, cwd string, rs *remoteSession, out
 			return nil
 		}
 		summary := trust.ToolCallSummary(call)
-		fmt.Fprintf(out, "\npigo wants to run %q — approve on the paired device…\n", call.Name)
+		fmt.Fprintf(out, "\naikota wants to run %q — approve on the paired device…\n", call.Name)
 		d, remote := rs.bridge.Confirm(ctx, call.Name, summary)
 		if !remote {
 			// Interrupted / cancelled before the browser answered: deny.
