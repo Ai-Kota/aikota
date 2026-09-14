@@ -9,7 +9,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strings"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 )
@@ -43,7 +45,7 @@ func Discover(dir string, warnLog, pluginStderr io.Writer) (*Manager, error) {
 			continue
 		}
 		info, err := e.Info()
-		if err != nil || !isExecutable(info.Mode()) {
+		if err != nil || !isExecutable(e.Name(), info.Mode()) {
 			continue
 		}
 		path := filepath.Join(dir, e.Name())
@@ -59,8 +61,21 @@ func Discover(dir string, warnLog, pluginStderr io.Writer) (*Manager, error) {
 	return m, nil
 }
 
-// isExecutable reports whether the file mode has any execute bit set.
-func isExecutable(mode os.FileMode) bool {
+// isExecutable reports whether the named file can be run as a plugin.
+//
+// On Unix the mode's execute bits are authoritative. On Windows os.Stat never
+// sets them — a .exe reports 0666 — so a mode-only check would reject every
+// plugin and discovery would silently return nothing. Windows uses the
+// extension instead, which also correctly rejects an unrelated non-executable
+// file dropped in the plugin directory.
+func isExecutable(name string, mode os.FileMode) bool {
+	if runtime.GOOS == "windows" {
+		switch strings.ToLower(filepath.Ext(name)) {
+		case ".exe", ".bat", ".cmd", ".com":
+			return true
+		}
+		return false
+	}
 	return mode&0o111 != 0
 }
 

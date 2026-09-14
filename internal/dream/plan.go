@@ -299,16 +299,38 @@ func isLocalPathRef(tok string) bool {
 	case strings.HasPrefix(tok, "/"),
 		strings.HasPrefix(tok, "./"),
 		strings.HasPrefix(tok, "../"),
-		strings.HasPrefix(tok, "~/"):
+		strings.HasPrefix(tok, "~/"),
+		// Windows forms: explicitly relative with a backslash, drive-absolute
+		// ("C:\dir\f.go" and "C:/dir/f.go"), and UNC ("\\server\share\f.go").
+		// Without these a memory file written on Windows never had its dead
+		// references cleaned, because no token matched.
+		strings.HasPrefix(tok, `.\`),
+		strings.HasPrefix(tok, `..\`),
+		strings.HasPrefix(tok, `\\`),
+		isDriveAbsolute(tok):
 		return true
 	}
 	// A bare relative token needs both a separator and an extension on its last
 	// segment to be treated as a path (avoids flagging prose like "TCP/IP").
-	if !strings.Contains(tok, "/") {
+	if !strings.ContainsAny(tok, `/\`) {
 		return false
 	}
-	last := tok[strings.LastIndex(tok, "/")+1:]
+	last := tok[strings.LastIndexAny(tok, `/\`)+1:]
 	return strings.Contains(last, ".") && !strings.HasSuffix(last, ".")
+}
+
+// isDriveAbsolute reports whether tok is a Windows drive-absolute path, e.g.
+// `C:\dir\file.go` or `C:/dir/file.go`. A bare "C:" (drive-relative) is not a
+// path and is rejected.
+func isDriveAbsolute(tok string) bool {
+	if len(tok) < 3 || tok[1] != ':' {
+		return false
+	}
+	c := tok[0]
+	if !(c >= 'A' && c <= 'Z') && !(c >= 'a' && c <= 'z') {
+		return false
+	}
+	return tok[2] == '\\' || tok[2] == '/'
 }
 
 // resolveRef turns a reference into an absolute path for existence checking:
