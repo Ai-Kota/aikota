@@ -262,6 +262,7 @@ func BuiltinTools(cwd string, disabled bool) []agentcore.AgentTool {
 		&agenttool.GrepTool{Root: cwd},
 		&agenttool.FindTool{Root: cwd},
 		&agenttool.RepoMapTool{Root: cwd},
+		&agenttool.VerifyTool{Root: cwd},
 		&agenttool.BashTool{Dir: cwd, Jobs: jobs},
 		&agenttool.BashOutputTool{Jobs: jobs},
 		&agenttool.BashKillTool{Jobs: jobs},
@@ -336,6 +337,13 @@ func TodoReminders(tools []agentcore.AgentTool) *runtime.ReminderRegistry {
 		case *agenttool.MemorySearchTool:
 			if tool.Store != nil {
 				providers = append(providers, &runtime.MemoryReminderProvider{Store: tool.Store})
+			}
+		case *agenttool.VerifyTool:
+			// The provider derives its root from the tool, so registering a
+			// verify tool is what turns verification into a loop. A project
+			// with no discoverable checks yields nil and stays unreminded.
+			if p := runtime.NewVerifyReminderProvider(tool.Root); p != nil {
+				providers = append(providers, p)
 			}
 		}
 	}

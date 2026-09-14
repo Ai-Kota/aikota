@@ -184,7 +184,7 @@ aikota 的拼接方式（`baseURL` + `/chat/completions` 或 `/messages`）**与
 |---|---|---|---|
 | **RepoMap** | ✅ 完成 | openclaude `RepoMapTool`（借设计） | `internal/repomap` + `repo_map` 工具。**实现对 Go 是净简化**：openclaude 用 tree-sitter（C 库），aikota 用标准库 `go/parser`+`go/ast`——**零依赖、零 CGO**。算法保真：IDF 加权 + PageRank(α=0.85) + 焦点提升 + token 预算渲染。实测 aikota 自身：412 文件 / 103ms，排名首位是 `internal/agentcore/content.go`（所有包依赖的核心类型）|
 | **LSP** | ⬜ | openclaude `LSPTool` | 从文本匹配升级到**语义理解**（真实定义/引用，而非正则）。需外部 LSP server → 按 §5.5 需先判定归属 |
-| **验证闭环** | ⬜ | 无成熟参照（openclaude 亦弱） | 改动后自动跑测试/lint 并回喂结果——**"敢放手"的关键** |
+| **验证闭环** | ✅ 完成 | 无成熟参照（openclaude 亦弱） | `internal/verify` + `verify` 工具 + **验证提醒**。命令**从项目自身发现**（`go.mod`→build+test；Cargo/npm/pytest；`.aikota/verify.json` 可覆盖），不引入第二处真相。**关键设计：提醒而非自动跑**——改动后未验证时注入提醒，把判断权留给模型，循环本身保持简单（自动跑会在每轮触发，且循环得决定失败怎么办）。端到端实测：给一个测试失败的项目，aikota 修好后**以检查通过为依据**报告成功，修复独立复验通过 |
 
 ### 第 3 层 · 锦上添花（按需，不建议一次全上）
 
