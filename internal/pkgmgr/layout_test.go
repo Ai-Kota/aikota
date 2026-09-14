@@ -17,10 +17,13 @@ func TestHomeHonorsAIKOTAHOME(t *testing.T) {
 // $AIKOTA_HOME.
 func TestTypeDirsUnderHome(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", "/custom/aikota")
+	// Expectations go through filepath.Join so they match the joined form the
+	// package returns on a platform whose separator is not '/'.
+	root := filepath.FromSlash("/custom/aikota")
 	cases := map[PackageType]string{
-		TypeExtension: "/custom/aikota/plugins",
-		TypePrompt:    "/custom/aikota/commands",
-		TypeTheme:     "/custom/aikota/themes",
+		TypeExtension: filepath.Join(root, "plugins"),
+		TypePrompt:    filepath.Join(root, "commands"),
+		TypeTheme:     filepath.Join(root, "themes"),
 	}
 	for typ, want := range cases {
 		if got := DirForType(typ); got != want {
@@ -44,7 +47,10 @@ func TestSkillsDirHonorsOverride(t *testing.T) {
 func TestSkillsDirDefault(t *testing.T) {
 	t.Setenv("AIKOTA_SKILLS_DIR", "")
 	t.Setenv("HOME", "/home/tester")
-	want := filepath.Join("/home/tester", ".agents", "skills")
+	// os.UserHomeDir reads USERPROFILE on Windows and HOME everywhere else, so
+	// set both for the fixture home to apply on either platform.
+	t.Setenv("USERPROFILE", filepath.FromSlash("/home/tester"))
+	want := filepath.Join(filepath.FromSlash("/home/tester"), ".agents", "skills")
 	if got := SkillsDir(); got != want {
 		t.Errorf("SkillsDir() = %q, want %q", got, want)
 	}

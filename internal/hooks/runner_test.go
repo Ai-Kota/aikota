@@ -20,7 +20,7 @@ func TestRunnerRunStdinAndEnv(t *testing.T) {
 	envFile := filepath.Join(dir, "env.txt")
 
 	r := &Runner{ProjectDir: dir}
-	h := HookConfig{Command: "cat > " + outFile + "; printf '%s\\n%s\\n%s\\n' \"$AIKOTA_SESSION_ID\" \"$AIKOTA_PROJECT_DIR\" \"$AIKOTA_EVENT_TYPE\" > " + envFile}
+	h := HookConfig{Command: "cat > " + filepath.ToSlash(outFile) + "; printf '%s\\n%s\\n%s\\n' \"$AIKOTA_SESSION_ID\" \"$AIKOTA_PROJECT_DIR\" \"$AIKOTA_EVENT_TYPE\" > " + filepath.ToSlash(envFile)}
 	input := HookInput{EventType: "PreToolUse", SessionID: "sess-1", ProjectDir: dir, ToolName: "bash"}
 
 	if _, err := r.Run(context.Background(), h, input); err != nil {

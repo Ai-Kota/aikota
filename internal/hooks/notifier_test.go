@@ -17,7 +17,7 @@ func captureNotifier(t *testing.T, event string) (*HookNotifier, string) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "capture.json")
 	set := HookSet{
-		event: {{Matcher: "*", Hooks: []HookConfig{{Command: "cat >> " + out}}}},
+		event: {{Matcher: "*", Hooks: []HookConfig{{Command: "cat >> " + filepath.ToSlash(out)}}}},
 	}
 	d := NewDispatcher(set, dir, nil)
 	if d == nil {

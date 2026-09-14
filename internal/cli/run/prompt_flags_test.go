@@ -9,6 +9,7 @@ package run
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -79,6 +80,11 @@ func TestResolveAppendInstructionsUnreadableFile(t *testing.T) {
 	}
 	// Root can read 0o000 files, so skip the read-error assertion when running as
 	// root (common in CI containers) — the path would succeed instead of erroring.
+	// Windows is skipped for the same reason: it has no POSIX mode bits, so
+	// writing with 0o000 leaves the file perfectly readable.
+	if runtime.GOOS == "windows" {
+		t.Skip("windows has no POSIX mode bits: a 0o000 file is still readable")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("running as root: 0o000 file is still readable, cannot exercise read-error path")
 	}

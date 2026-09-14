@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+// memKey normalizes a slash-separated fixture path the same way the parser
+// keys its result maps (filepath.Clean, see allowedSet), so assertions hold on
+// a platform whose separator is not '/'. The fixtures themselves stay in slash
+// form because they are embedded in the JSON response the parser reads.
+func memKey(p string) string { return filepath.Clean(p) }
+
 // canned builds an allowed-set + Plan pair for parser tests from a list of
 // absolute paths.
 func allowedSet(paths ...string) map[string]struct{} {
@@ -78,10 +84,10 @@ func TestParseConsolidateResponseMergeAndPrune(t *testing.T) {
 	if res.Pruned != 1 {
 		t.Errorf("Pruned = %d, want 1", res.Pruned)
 	}
-	if got := res.MergedBodies[a]; got != "merged body" {
+	if got := res.MergedBodies[memKey(a)]; got != "merged body" {
 		t.Errorf("MergedBodies[a] = %q", got)
 	}
-	wantDel := map[string]bool{b: true, c: true}
+	wantDel := map[string]bool{memKey(b): true, memKey(c): true}
 	if len(res.Deletions) != 2 {
 		t.Fatalf("Deletions = %v, want b and c", res.Deletions)
 	}
@@ -163,7 +169,7 @@ func TestLLMConsolidatorUsesCompleter(t *testing.T) {
 	if !strings.Contains(gotUser, a) {
 		t.Error("user prompt missing entry path")
 	}
-	if res.Merged != 1 || res.MergedBodies[a] != "merged" {
+	if res.Merged != 1 || res.MergedBodies[memKey(a)] != "merged" {
 		t.Fatalf("merge not applied: %+v", res)
 	}
 }

@@ -57,7 +57,7 @@ func TestGrepBasic(t *testing.T) {
 		t.Errorf("expected go file matches, got %q", txt)
 	}
 	// .gitignore'd paths must be skipped.
-	if strings.Contains(txt, "build/generated.go") {
+	if strings.Contains(txt, filepath.FromSlash("build/generated.go")) {
 		t.Errorf("ignored dir should be skipped: %q", txt)
 	}
 	if strings.Contains(txt, "debug.log") {
@@ -92,10 +92,10 @@ func TestFindGlob(t *testing.T) {
 	tool := &FindTool{Root: dir}
 	res := runSearch(t, tool, map[string]any{"glob": "*.go"})
 	txt := resultText(res)
-	if !strings.Contains(txt, "main.go") || !strings.Contains(txt, "sub/deep.go") {
+	if !strings.Contains(txt, "main.go") || !strings.Contains(txt, filepath.FromSlash("sub/deep.go")) {
 		t.Errorf("expected go files, got %q", txt)
 	}
-	if strings.Contains(txt, "build/generated.go") {
+	if strings.Contains(txt, filepath.FromSlash("build/generated.go")) {
 		t.Errorf("ignored dir should be skipped: %q", txt)
 	}
 	if strings.Contains(txt, "README.md") {

@@ -3,6 +3,7 @@ package provider
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -89,16 +90,21 @@ func TestCredentialFileRoundTrip(t *testing.T) {
 	if _, err := ResolveCredentialReference(path, "missing-name"); err == nil {
 		t.Error("missing credential name succeeded, want error")
 	}
-	if CredentialFilePermissionsWarn(path) {
-		t.Error("0600 file flagged as permissive, want no warning")
-	}
+	// The permission heuristic reads POSIX mode bits, which Windows does not
+	// have: os.Stat reports 0666 for every file there and os.Chmod only toggles
+	// the read-only attribute, so neither assertion can hold on Windows.
+	if runtime.GOOS != "windows" {
+		if CredentialFilePermissionsWarn(path) {
+			t.Error("0600 file flagged as permissive, want no warning")
+		}
 
-	// A group/other-readable file must raise the warning.
-	if err := os.Chmod(path, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if !CredentialFilePermissionsWarn(path) {
-		t.Error("0644 file not flagged, want warning")
+		// A group/other-readable file must raise the warning.
+		if err := os.Chmod(path, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if !CredentialFilePermissionsWarn(path) {
+			t.Error("0644 file not flagged, want warning")
+		}
 	}
 
 	// Malformed YAML surfaces as an error naming the file.

@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -113,16 +112,14 @@ func TestDispatchTUIGating(t *testing.T) {
 // project root as an SDK backend. It exercises the downstream effect rather than
 // re-parsing flags, since the chdir itself lives in main().
 func TestCwdChdirRootsEnv(t *testing.T) {
-	orig, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(orig) })
-
 	dir := t.TempDir()
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
+	// t.Chdir restores the original working directory as part of the test's own
+	// cleanup chain, so the restore is ordered before t.TempDir's RemoveAll.
+	// Doing it by hand with t.Cleanup registers the restore too early — cleanups
+	// run LIFO — leaving the process inside the temp dir when Windows tries to
+	// delete it ("the file is being used by another process").
+	t.Chdir(dir)
+	var err error
 	// macOS temp dirs are symlinks (/tmp → /private/tmp); os.Getwd resolves them,
 	// so compare against the resolved form.
 	want, err := filepath.EvalSymlinks(dir)

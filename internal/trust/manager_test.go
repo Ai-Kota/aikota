@@ -26,6 +26,21 @@ func newTestManager(t *testing.T) *Manager {
 	return m
 }
 
+// pfx normalizes a slash-separated fixture path the same way the manager does
+// (filepath.Clean), so an assertion on a returned Path holds on platforms
+// whose path separator is not '/'.
+func pfx(slashPath string) string {
+	return filepath.Clean(filepath.FromSlash(slashPath))
+}
+
+// jsonKey returns the object key the manager writes for a fixture path, i.e.
+// the cleaned path with JSON escaping applied (a Windows backslash becomes
+// "\\"). Used when inspecting the raw store text.
+func jsonKey(slashPath string) string {
+	b, _ := json.Marshal(pfx(slashPath))
+	return string(b[1 : len(b)-1])
+}
+
 // reload reopens the manager at the same path, asserting no error, so a test
 // can verify a decision survived a write.
 func reload(t *testing.T, m *Manager) *Manager {
@@ -72,10 +87,10 @@ func TestSetDecisionPersists(t *testing.T) {
 		t.Fatalf("SetDecision Untrusted: %v", err)
 	}
 	m2 := reload(t, m)
-	if got := m2.NearestTrustDecision("/a"); !got.Found || got.Decision != Trusted || got.Path != "/a" {
+	if got := m2.NearestTrustDecision("/a"); !got.Found || got.Decision != Trusted || got.Path != pfx("/a") {
 		t.Errorf("reload NearestTrustDecision(/a) = %+v, want Found/Trusted//a", got)
 	}
-	if got := m2.NearestTrustDecision("/b"); !got.Found || got.Decision != Untrusted || got.Path != "/b" {
+	if got := m2.NearestTrustDecision("/b"); !got.Found || got.Decision != Untrusted || got.Path != pfx("/b") {
 		t.Errorf("reload NearestTrustDecision(/b) = %+v, want Found/Untrusted//b", got)
 	}
 }
@@ -90,7 +105,7 @@ func TestNearestAncestorWalk(t *testing.T) {
 		t.Fatalf("SetDecision: %v", err)
 	}
 	got := m.NearestTrustDecision("/a/b/c")
-	if !got.Found || got.Decision != Trusted || got.Path != "/a" {
+	if !got.Found || got.Decision != Trusted || got.Path != pfx("/a") {
 		t.Errorf("NearestTrustDecision(/a/b/c) = %+v, want Found/Trusted/Path=/a", got)
 	}
 	// A more specific entry shadows a broader one: /a/b/untrusted wins over
@@ -99,12 +114,12 @@ func TestNearestAncestorWalk(t *testing.T) {
 		t.Fatalf("SetDecision /a/b: %v", err)
 	}
 	got = m.NearestTrustDecision("/a/b/c")
-	if !got.Found || got.Decision != Untrusted || got.Path != "/a/b" {
+	if !got.Found || got.Decision != Untrusted || got.Path != pfx("/a/b") {
 		t.Errorf("NearestTrustDecision(/a/b/c) after shadow = %+v, want Found/Untrusted/Path=/a/b", got)
 	}
 	// /a/d is under /a but not /a/b, so it still sees /a/trusted.
 	got = m.NearestTrustDecision("/a/d")
-	if !got.Found || got.Decision != Trusted || got.Path != "/a" {
+	if !got.Found || got.Decision != Trusted || got.Path != pfx("/a") {
 		t.Errorf("NearestTrustDecision(/a/d) = %+v, want Found/Trusted/Path=/a", got)
 	}
 }
@@ -138,7 +153,7 @@ func TestNullEntryRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatalf("parse trust file: %v", err)
 	}
-	v, ok := got["/a"]
+	v, ok := got[pfx("/a")]
 	if !ok {
 		t.Fatal("entry /a missing from trust file")
 	}
@@ -261,8 +276,9 @@ func TestDecisionForExactPath(t *testing.T) {
 // ~/.aikota/trust.json.
 func TestDefaultPath(t *testing.T) {
 	t.Setenv("AIKOTA_HOME", "/custom/aikota")
-	if got := DefaultPath(); got != "/custom/aikota/trust.json" {
-		t.Errorf("DefaultPath with AIKOTA_HOME = %q, want /custom/aikota/trust.json", got)
+	wantHome := filepath.Join(filepath.FromSlash("/custom/aikota"), "trust.json")
+	if got := DefaultPath(); got != wantHome {
+		t.Errorf("DefaultPath with AIKOTA_HOME = %q, want %q", got, wantHome)
 	}
 	t.Setenv("AIKOTA_HOME", "")
 	home, err := os.UserHomeDir()
@@ -289,9 +305,9 @@ func TestSaveIsSorted(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 	s := string(raw)
-	i := strings.Index(s, "/alpha")
-	j := strings.Index(s, "/mid")
-	k := strings.Index(s, "/zeta")
+	i := strings.Index(s, jsonKey("/alpha"))
+	j := strings.Index(s, jsonKey("/mid"))
+	k := strings.Index(s, jsonKey("/zeta"))
 	if i < 0 || j < 0 || k < 0 {
 		t.Fatalf("expected /alpha, /mid, /zeta in output; got indices %d/%d/%d", i, j, k)
 	}

@@ -350,8 +350,11 @@ func TestFormatSkillsForPrompt(t *testing.T) {
 	if !strings.Contains(out, "<description>get weather</description>") {
 		t.Errorf("visible skill description missing:\n%s", out)
 	}
-	if !strings.Contains(out, "<location>/skills/weather.md</location>") {
-		t.Errorf("visible skill location missing:\n%s", out)
+	// The location is absolutized before rendering, so assert on the trailing
+	// path rather than the whole element: the absolute prefix is platform- and
+	// cwd-dependent (on Windows it is a drive-letter path, not "/skills/...").
+	if tail := filepath.FromSlash("skills/weather.md") + "</location>"; !strings.Contains(out, tail) {
+		t.Errorf("visible skill location missing (want suffix %q):\n%s", tail, out)
 	}
 	if strings.Contains(out, "secret") {
 		t.Errorf("disabled skill must be excluded:\n%s", out)
@@ -395,8 +398,16 @@ func TestFormatSkillsForPromptAbsoluteLocation(t *testing.T) {
 		{Frontmatter: SkillFrontmatter{Name: "rel", Description: "d"}, Path: "sub/rel.md"},
 	}
 	out := FormatSkillsForPrompt(skills)
-	if !strings.Contains(out, "<location>"+string(filepath.Separator)) && !strings.Contains(out, "<location>/") {
-		t.Errorf("location should be absolute:\n%s", out)
+	// Assert absoluteness with filepath.IsAbs rather than a leading-separator
+	// check: a Windows absolute path starts with a drive letter ("C:\..."), so
+	// looking for a separator immediately after <location> only holds on Unix.
+	const open, closing = "<location>", "</location>"
+	i, j := strings.Index(out, open), strings.Index(out, closing)
+	if i < 0 || j < i {
+		t.Fatalf("no location element in output:\n%s", out)
+	}
+	if loc := out[i+len(open) : j]; !filepath.IsAbs(loc) {
+		t.Errorf("location should be absolute, got %q:\n%s", loc, out)
 	}
 }
 
