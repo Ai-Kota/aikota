@@ -53,14 +53,16 @@ aikota 可以读写文件、执行命令、检索代码、抓取网页，并借�
 
 ## 特性一览
 
-- **两种模式**：无头 `-p` 一次性执行（适合脚本 / CI），或直接进入交互式 REPL。
+- **三种运行形态**：无头 `-p`（脚本 / CI / 管道）、全屏 TUI（默认交互）、逐行 REPL（`--no-tui`，或 stdout 非终端时自动回退）。
 - **多 Provider**：OpenRouter（默认）、本地 Ollama、NVIDIA NIM、Anthropic、任意 OpenAI 兼容端点。
-- **内置工具集**：`read` / `write` / `edit` / `grep` / `find` / `bash`（支持 `run_in_background` 后台执行，配套 `bash_output` / `kill_bash`）/ `todo` / `webfetch`。
-- **会话续跑**：`--list-sessions` / `--resume` / `--continue`，无头与 REPL 均可续跑。
+- **内置工具集**：`read` / `write` / `edit` / `grep` / `find` / `repo_map` / `bash`（`run_in_background` 后台执行，配套 `bash_output` / `kill_bash`）/ `verify` / `todo` / `webfetch` / `websearch` / `memory_search` / `task`（子 Agent 并行派发）。
+- **会话续跑**：`--list-sessions` / `--resume` / `--continue`，无头与交互模式均可续跑；`--no-session` 可完全不留会话文件（批量与编排场景）。
 - **stream-json 输出**：逐行 JSON 事件，首个事件携带 `session_id`，便于调用方关联。
 - **系统提示词分层组装**：base 指令 + 环境块 + `AGENTS.md`（general→specific）+ `--append-system-prompt`。
 - **项目信任**：副作用工具（bash/write/edit）在未信任目录需确认，`--approve` 一次性授权。
 - **工具级准入**：`--allowed-tools` / `--disallowed-tools` 划定工具边界（黑名单优先、子 Agent 继承、`--approve` 不可绕过）。
+- **内建安全闸门**：不可绕过的底线——破坏性命令、提权、供应链、工作区内的凭据文件一律拦截，`--approve` 与任何策略都无法放宽；拦截理由回给模型，它会换做法而不是静默失败。
+- **结构地图与自验证**：`repo_map` 按依赖度给出带签名的代码库地图；`verify` 运行项目自己的 build / test，**改动后未验证会被提醒**——以检查结果为准，而不是模型自称完成。
 - **技能与插件**：`~/.agents/skills` 下的 `/slash` 命令、`~/.aikota/plugins` 下的外部插件。
 - **提示词模板**：`~/.aikota/prompts`、项目 `.aikota/prompts`（受信任时）、config `prompts`、`--prompt-template` 下的可复用 `/name` 模板，支持 `$1`/`$@`/`${1:-default}`/`${@:N}` 等参数语法。
 - **上下文自动压缩**：接近上下文窗口上限时自动摘要，亦可 `/compact` 手动触发。
@@ -170,22 +172,26 @@ aikota -m ollama/qwen2.5-coder -u http://localhost:11434/v1 -p "解释 main.go �
 | `--base-url` | `-u` | `""` | 覆盖 Provider 的 base URL（如本地 Ollama） |
 | `--api-key` | `-k` | `""` | 指定 Provider 的 API Key（覆盖 env/config，否则读 `<PROVIDER>_API_KEY`） |
 | `--protocol` | `-P` | `""` | 强制线路协议：`openai` \| `anthropic`（默认由 model id 推断） |
+| `--thinking-level` | | `medium` | 推理强度：`off`\|`minimal`\|`low`\|`medium`\|`high`\|`xhigh`\|`max`（覆盖 `AIKOTA_THINKING_LEVEL` 与 config） |
 | `--output-format` | `-o` | `text` | 输出格式：`text` \| `stream-json` |
+| `--cwd` | `-C` | `""` | 如同在该目录启动 aikota（等价于 `git -C`）：工具文件访问、信任、hooks、项目配置全部按它解析 |
 | `--no-tools` | `-n` | `false` | 禁用内置文件/shell 工具（同时跳过插件发现） |
 | `--allowed-tools` | | `nil` | 工具白名单：只把这些工具交给模型；可重复、可逗号分隔、大小写不敏感；为空表示不限制 |
 | `--disallowed-tools` | | `nil` | 工具黑名单：从模型的工具集中移除这些工具；同名冲突时**优先于** `--allowed-tools` |
 | `--list-sessions` | `-l` | `false` | 列出已存储的会话并退出 |
 | `--resume` | `-r` | `""` | 续跑指定 id 的会话 |
 | `--continue` | `-c` | `false` | 续跑最近一次的会话 |
+| `--no-session` | | `false` | 完全不读写会话存储：无状态运行、不留会话文件（批量与编排场景；与 `--resume`/`--continue` 互斥） |
 | `--approve` | `-a` | `false` | 为本次运行信任工作目录：跳过首次信任提示，副作用工具免逐次确认 |
 | `--no-skills` | | `false` | 禁用技能发现（不加载 `~/.agents/skills` 为 `/skill-name` 命令） |
+| `--no-tui` | | `false` | 使用逐行 REPL 而非全屏 TUI（非终端 stdout 会自动回退到 REPL） |
 | `--no-prompt-templates` | | `false` | 禁用提示词模板发现（不加载 `~/.aikota/{commands,prompts}`、`.aikota/prompts`、config `prompts`、`--prompt-template`）；内置斜杠命令不受影响 |
 | `--prompt-template` | | `nil` | 从文件或目录（非递归）加载提示词模板；可重复（对标 pi `--prompt-template`） |
 | `--system-prompt` | | `""` | 用自定义系统提示词替换默认的 coding-assistant 提示词 |
 | `--append-system-prompt` | | `nil` | 向系统提示词末尾追加文本或文件内容；可重复 |
 | `--version` | `-v` | `false` | 打印版本信息并退出 |
 
-> `--subagent-rpc` 为内部参数（进程隔离子 Agent 的 JSON-RPC 服务端），不用于直接调用。
+> `--subagent-rpc`、`--dream` / `--dream-dry-run`（记忆固化）与 `--github-review` 系列为内部入口，不用于直接调用。
 
 **使用例子：**
 
@@ -294,9 +300,11 @@ aikota -P anthropic -m claude-3-5-sonnet-20241022 -p "..."
 | `edit` | 精确字符串替换（`old_string` 需唯一，除非 `replace_all`），返回 diff |
 | `grep` | 正则检索文件内容，支持 glob 过滤，跳过 `.gitignore` 路径 |
 | `find` | 按文件名 glob 查找文件，跳过 `.gitignore` 路径 |
+| `repo_map` | 生成代码库结构地图：按依赖度（PageRank）排序的文件及其关键签名。用于在动手前建立整体认知，代替十几次 grep+read 试探。参数 `max_tokens` / `focus_files` / `focus_symbols` |
 | `bash` | 执行 shell 命令，流式 stdout/stderr，支持超时与取消；`run_in_background` 可转入后台 |
 | `bash_output` | 读取后台 bash 任务的增量输出 |
 | `kill_bash` | 终止后台 bash 任务 |
+| `verify` | 运行项目自己的检查（build / test / lint）并回报结果。命令**从项目发现**：`go.mod`→`go build`+`go test`；`Cargo.toml`/`package.json`/`pyproject.toml` 同理；`.aikota/verify.json` 可完全覆盖。失败即停，只回传输出尾部 |
 | `todo` | 记录/更新结构化任务清单，每次提交整份列表（pending/in_progress/completed） |
 | `webfetch` | 抓取 URL 并转为精简 Markdown 正文，HTTP 自动升级 HTTPS |
 | `websearch` | 联网搜索并返回标题/URL/摘要，按凭证自动选后端（`TAVILY_API_KEY`→Tavily，`BRAVE_API_KEY`→Brave，否则回落无 key 的 DuckDuckGo），支持 `allowed_domains`/`blocked_domains` 过滤 |
@@ -339,6 +347,23 @@ allowed_tools = ["read", "grep"]
 disallowed_tools = ["bash"]
 ```
 
+### 内建安全闸门
+
+在工具策略之外还有一层**不可绕过**的底线。它位于工具执行链的基底，先于用户 hooks 与信任提示求值，**`--approve` 与任何策略都无法放宽它**。
+
+| 拦截类别 | 例子 |
+|---|---|
+| 破坏性命令 | `rm -rf /`、`rm -rf ~`、`mkfs`、`dd of=/dev/…`、重定向到设备节点、fork 炸弹、关机/重启 |
+| 提权与权限 | `sudo`、`chmod 777` |
+| 供应链 | `curl … \| sh`、系统级包安装（`apt` / `brew` / `choco` / `winget install`） |
+| Windows 等价物 | `format C:`、盘根递归删除 |
+| 工作区内敏感文件（`write` / `edit`） | `.git/config`（含远端与凭据）、`.git/hooks`、agent 自身的 `settings.json` |
+
+两个设计取舍值得知道：
+
+- **按"命令位"匹配**：只在行首或分隔符之后匹配，所以 `grep sudo file`、`echo "rm -rf /"` 这类**把危险字符串当数据用**的命令不会被误拦。代价是 `bash -c "rm -rf /"` 不拦——**这是防过度热情的 agent 的地板，不是防恶意者的沙箱**（操作系统级隔离见 [docs/sandboxing.md](docs/sandboxing.md)）。
+- **拦截理由回给模型**：被拦时理由作为该工具的 error result 返回，模型看得见并会换做法，而不是静默失败。
+
 ---
 
 ## 运行模式
@@ -350,8 +375,14 @@ aikota -p "总结这个仓库的架构"
 # stream-json：逐行 JSON 事件，首个事件带 session_id
 aikota -p "列出所有 Go 文件" --output-format stream-json
 
-# 交互式 REPL：不带 -p 且 stdout 为终端时进入
+# 全屏 TUI：不带 -p 且 stdout 为终端时进入（默认交互形态）
 aikota
+
+# 逐行 REPL：显式关闭 TUI，或在 stdout 非终端时自动回退
+aikota --no-tui
+
+# 无状态运行：不读也不写会话存储，适合批量与编排
+aikota -p "..." --no-session
 
 # 会话管理
 aikota --list-sessions              # 列出会话
@@ -741,6 +772,12 @@ git push origin v0.2.0
 |-------------|------|
 | `AIKOTA_HOME` | 覆盖 `~/.aikota` 基础目录（影响 plugins、commands、prompts） |
 | `AIKOTA_SKILLS_DIR` | 覆盖技能目录（默认 `~/.agents/skills`） |
+| `AIKOTA_MODEL` | 默认模型 id（低于命令行 `--model`） |
+| `AIKOTA_PROVIDER` | 默认 Provider 名（低于命令行 `--provider`） |
+| `AIKOTA_THINKING_LEVEL` | 默认推理强度（低于命令行 `--thinking-level`） |
+| `AIKOTA_MAX_SUBAGENTS` | `task` 子 Agent 的并发上限（默认 4） |
+| `AIKOTA_STREAM_IDLE_TIMEOUT` | 流式空闲超时（默认 5 分钟） |
+| `AIKOTA_DEBUG` | 设为非空开启调试输出 |
 | `~/.aikota/sessions` | 会话存储（JSONL） |
 | `~/.aikota/plugins` | 外部插件 |
 | `~/.aikota/prompts` | 提示词模板（pi 对齐；`aikota install` 的安装目标） |
@@ -804,7 +841,7 @@ git push origin v0.2.0
 ## 安全说明
 
 - aikota 会向解析出的 Provider 端点发起外部网络请求。
-- `bash` / `write` / `edit` 会在本地产生副作用，仅由项目信任机制把关；`--approve` 会跳过逐次确认，请在受信任的目录中使用，权衡便利与安全。
+- `bash` / `write` / `edit` 会在本地产生副作用，共三层把关：**内建安全闸门**（不可绕过的底线，见「内建安全闸门」）、**工具级准入**（`--allowed-tools` / `--disallowed-tools`）与**项目信任**（未信任目录下逐次确认）。`--approve` 只跳过第三层，请在受信任的目录中使用。
 - 处理来自文件、命令输出、网页等外部来源的内容时应视为不可信数据。
 - 需要操作系统级隔离时，参见 [docs/sandboxing.md](docs/sandboxing.md)：Docker 整进程、micro-VM、进程级策略沙箱三种模式与 trust/tool-policy 的组合矩阵。
 
