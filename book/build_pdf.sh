@@ -184,9 +184,9 @@ PANDOC_COMMON=(
     -V classoption=device=normal
     -V classoption=twoside
     -V classoption=openright
-    -V author="pigo"
+    -V author="aikota"
     --metadata title-meta="用 Go 从零构建 Pi Agent"
-    --metadata author-meta="pigo"
+    --metadata author-meta="aikota"
     -H preamble.tex
     --include-before-body=cover.tex
     --highlight-style=tango
@@ -209,7 +209,7 @@ if [ "$ENGINE_KIND" = "tectonic" ]; then
     mkdir -p "$SHIM_DIR"
     cat > "$SHIM_DIR/biber" <<'SHIM'
 #!/usr/bin/env bash
-REAL="${PIGO_REAL_BIBER:-biber}"
+REAL="${AIKOTA_REAL_BIBER:-biber}"
 out="$("$REAL" "$@" 2>&1)"; rc=$?
 printf '%s\n' "$out"
 if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -q 'control file version'; then
@@ -229,7 +229,7 @@ SHIM
     TEXFILE="book.tex"
     pandoc "${INPUTS[@]}" -o "$TEXFILE" --standalone "${PANDOC_COMMON[@]}"
 
-    PIGO_REAL_BIBER="$REAL_BIBER" \
+    AIKOTA_REAL_BIBER="$REAL_BIBER" \
     PATH="$SHIM_DIR:$PATH" \
         "$ENGINE" --outdir "$SCRIPT_DIR" "$TEXFILE"
 

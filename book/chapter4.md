@@ -231,7 +231,7 @@ type Decoder interface {
 }
 ```
 
-`StreamEvent` 只是 `AssistantMessageEvent` 的传输层别名（`type StreamEvent = AssistantMessageEvent`），刻意复用同一套事件类型，不另立门户。传输层每收到一个完整的 SSE data 载荷就调一次 `Decode`，流结束时调一次 `Finish` 让解码器冲刷缓冲。pigo 内置两个解码器，对应两套主流协议。
+`StreamEvent` 只是 `AssistantMessageEvent` 的传输层别名（`type StreamEvent = AssistantMessageEvent`），刻意复用同一套事件类型，不另立门户。传输层每收到一个完整的 SSE data 载荷就调一次 `Decode`，流结束时调一次 `Finish` 让解码器冲刷缓冲。aikota 内置两个解码器，对应两套主流协议。
 
 ### OpenAI 兼容：累积式 chunk 解码
 
@@ -318,7 +318,7 @@ if len(args) == 0 {
 msg.Content = append(msg.Content, agentcore.NewToolCallContent(call.id, call.name, args))
 ```
 
-停止原因也要翻译。OpenAI 的 `finish_reason` 与 pigo 内部的 `StopReason` 不是一套词汇，`mapOpenAIFinishReason` 负责映射，且对未知值一律回落到 `end_turn`（一个自然的、非错误的收尾）：
+停止原因也要翻译。OpenAI 的 `finish_reason` 与 aikota 内部的 `StopReason` 不是一套词汇，`mapOpenAIFinishReason` 负责映射，且对未知值一律回落到 `end_turn`（一个自然的、非错误的收尾）：
 
 ```go
 func mapOpenAIFinishReason(reason string) string {
@@ -553,7 +553,7 @@ idle := idleTimeout()
 stall := time.Duration(float64(idle) * stallFactor)
 ```
 
-- **idle 看门狗**（默认 5 分钟，可用环境变量 `PIGO_STREAM_IDLE_TIMEOUT` 覆盖）：只要**一段时间内一个字节都没收到**就开火。它防的是"连接挂着但对面彻底哑了"。
+- **idle 看门狗**（默认 5 分钟，可用环境变量 `AIKOTA_STREAM_IDLE_TIMEOUT` 覆盖）：只要**一段时间内一个字节都没收到**就开火。它防的是"连接挂着但对面彻底哑了"。
 - **stall（内容停滞）看门狗**（`idle × 1.2`，比 idle 略松）：防的是另一种病态——对面一直发 keep-alive 注释或空行让 idle 一直不触发，却始终不产出真正的内容事件。
 
 两者的更新时机不同，正是它们能各司其职的关键：**收到任何一行**（哪怕是注释、空行）都重置 idle 计时器；只有**冲刷出一个真正的事件**（内容有进展）才重置 stall 计时器。于是"活着但没内容"会被 stall 逮到，"彻底静默"会被 idle 逮到。
@@ -770,7 +770,7 @@ func checkImageSupport(providerName, model string, models []Model, msgs []agentc
 }
 ```
 
-请求里没图就直接放行；有图且模型明确声明不支持，就报一个清楚的错误，把"图被悄悄丢弃"变成一条用户能看懂的消息。而目录里根本查不到的模型则**从宽处理**（能力未知，交给上游自己校验）——这是一种务实的容错：pigo 不假装自己知道每一个模型的能力。
+请求里没图就直接放行；有图且模型明确声明不支持，就报一个清楚的错误，把"图被悄悄丢弃"变成一条用户能看懂的消息。而目录里根本查不到的模型则**从宽处理**（能力未知，交给上游自己校验）——这是一种务实的容错：aikota 不假装自己知道每一个模型的能力。
 
 ### 构造器：一张表收敛所有差异
 
@@ -1003,7 +1003,7 @@ go test ./internal/provider/ -run 'TransportRetry' -v
 go test ./internal/provider/ -run 'TransportIdleWatchdog' -v
 ```
 
-它用 `t.Setenv("PIGO_STREAM_IDLE_TIMEOUT", "100ms")` 把空闲窗口调到 100 毫秒，让上游连上后一直挂着不发数据，断言流最终以一条 `StopReason=error`、内容为空闲超时的终止消息收尾。你可以把这个环境变量改成 `"2s"` 再跑一次，感受看门狗窗口是如何被 `idleTimeout()` 读取的。
+它用 `t.Setenv("AIKOTA_STREAM_IDLE_TIMEOUT", "100ms")` 把空闲窗口调到 100 毫秒，让上游连上后一直挂着不发数据，断言流最终以一条 `StopReason=error`、内容为空闲超时的终止消息收尾。你可以把这个环境变量改成 `"2s"` 再跑一次，感受看门狗窗口是如何被 `idleTimeout()` 读取的。
 
 **步骤 4**：看两个解码器把线上格式还原成同一套事件。
 
@@ -1017,7 +1017,7 @@ go test ./internal/provider/ -run 'Decoder' -v
 
 ## 本章小结
 
-本章把 pigo 的 Provider 层从契约到线缆彻底解剖了一遍：
+本章把 aikota 的 Provider 层从契约到线缆彻底解剖了一遍：
 
 - **统一契约与双失败模型**：`StreamFn` / `Provider`（`provider_interface.go`、`provider.go`）给循环一个协议无关的流式接口。返回的 `error` 只保留给"连流都建不起来"的早错误；一切运行期失败都包成终止的 `StreamErrorEvent` 随流而下，走通 `IsComplete → ExtractResult → Result` 这条既有链路。增量事件携带的是"截至此刻的完整消息快照"，让消费端无需自己拼碎片。
 - **两套协议解码**：`OpenAIDecoder`（`openai.go`）解同构的 `chat.completion.chunk` 流并按 index 归并分片的工具调用；`AnthropicDecoder`（`anthropic.go`）解有类型的 Messages 事件序列。二者输入迥异，却都遵守"永不 panic、错误走返回值、`Finish` 冲刷"的同一份 `Decoder` 契约，输出同一套 `AssistantMessageEvent`。
@@ -1034,6 +1034,6 @@ go test ./internal/provider/ -run 'Decoder' -v
 3. `pump` 为什么需要 **两个** 看门狗？构造一个只有 idle 看门狗会漏掉、必须靠 stall 看门狗才能逮住的病态服务器行为；再构造一个反过来的。（提示：注意 idle 与 stall 计时器各自的重置时机。）
 4. `TransportConfig.NewRequest` 是一个"每次连接都重造请求"的工厂，而不是一个现成的 `*http.Request`。如果改成后者，`connect` 的重试路径会在何处、以何种方式出错？
 5. `resolveBedrock` 检测到 `AWS_PROFILE` 或静态 AK/SK 时，没有默默失败，而是回一条"检测到凭据但 SigV4 未实现"的错误。对照 `checkImageSupport` 对"模型看不见图"的处理，总结这两处共享的是同一种什么设计原则？它对使用者的体验有何影响？
-6. `minimax` 在注册表里是 `Protocol: anthropic` + `AuthScheme: x-api-key`，端点却是国产网关。结合 `anthropicAuthHeaderFor` 与 `NewAnthropicProtocolProvider`，说明"协议""鉴权""厂商"这三个维度为什么在 pigo 里是彼此正交的，以及这种正交性带来了什么扩展上的好处。
+6. `minimax` 在注册表里是 `Protocol: anthropic` + `AuthScheme: x-api-key`，端点却是国产网关。结合 `anthropicAuthHeaderFor` 与 `NewAnthropicProtocolProvider`，说明"协议""鉴权""厂商"这三个维度为什么在 aikota 里是彼此正交的，以及这种正交性带来了什么扩展上的好处。
 
 

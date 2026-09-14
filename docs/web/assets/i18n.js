@@ -1,4 +1,4 @@
-/* pigo site — i18n + theme (zero-build, no deps)
+/* aikota site — i18n + theme (zero-build, no deps)
  *
  * i18n model: put both languages directly on elements as data-en / data-zh.
  *   <h1 data-en="Hello" data-zh="你好"></h1>
@@ -6,14 +6,14 @@
  * The active language's value is written via innerHTML so inline markup works.
  * Attributes can be localized too: data-en-attr="placeholder|Search" etc. (optional, unused by default)
  *
- * Persistence: localStorage keys `pigo-lang` (en|zh) and `pigo-theme` (dark|light).
+ * Persistence: localStorage keys `aikota-lang` (en|zh) and `aikota-theme` (dark|light).
  * Default language follows navigator.language (zh* -> zh, else en). Default theme: light.
  */
 (function () {
   "use strict";
 
-  var LANG_KEY = "pigo-lang";
-  var THEME_KEY = "pigo-theme";
+  var LANG_KEY = "aikota-lang";
+  var THEME_KEY = "aikota-theme";
 
   function detectLang() {
     var saved = null;
@@ -45,8 +45,8 @@
       toggles[j].setAttribute("aria-label", lang === "zh" ? "Switch to English" : "切换到中文");
     }
     try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
-    window.PIGO_LANG = lang;
-    try { window.dispatchEvent(new CustomEvent("pigo:lang", { detail: { lang: lang } })); } catch (e) {}
+    window.AIKOTA_LANG = lang;
+    try { window.dispatchEvent(new CustomEvent("aikota:lang", { detail: { lang: lang } })); } catch (e) {}
   }
 
   function applyTheme(theme) {
@@ -63,7 +63,7 @@
       var t = ev.target.closest ? ev.target.closest("[data-lang-toggle],[data-theme-toggle],.copy-btn") : null;
       if (!t) return;
       if (t.hasAttribute("data-lang-toggle")) {
-        applyLang(window.PIGO_LANG === "zh" ? "en" : "zh");
+        applyLang(window.AIKOTA_LANG === "zh" ? "en" : "zh");
       } else if (t.hasAttribute("data-theme-toggle")) {
         var cur = document.documentElement.getAttribute("data-theme");
         applyTheme(cur === "light" ? "dark" : "light");
@@ -80,7 +80,7 @@
     if (!text) return;
     var done = function () {
       var old = btn.textContent;
-      btn.textContent = window.PIGO_LANG === "zh" ? "已复制" : "Copied";
+      btn.textContent = window.AIKOTA_LANG === "zh" ? "已复制" : "Copied";
       setTimeout(function () { btn.textContent = old; }, 1400);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {

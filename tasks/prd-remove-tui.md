@@ -2,9 +2,9 @@
 
 ## Introduction
 
-当前 pigo 的交互模式建立在 `charm.land/bubbletea/v2` 全屏 TUI 之上（`internal/tui` 包约 3000 行，含 model.go 834 行、state.go 413 行），逻辑复杂：包含流式渲染、transcript 状态机、斜杠命令弹出菜单、模型 picker、两段式 Ctrl+C、markdown 渲染、viewport 滚动等。
+当前 aikota 的交互模式建立在 `charm.land/bubbletea/v2` 全屏 TUI 之上（`internal/tui` 包约 3000 行，含 model.go 834 行、state.go 413 行），逻辑复杂：包含流式渲染、transcript 状态机、斜杠命令弹出菜单、模型 picker、两段式 Ctrl+C、markdown 渲染、viewport 滚动等。
 
-本次改动的目标是**删除整个 `internal/tui` 包及其依赖的 bubbletea/bubbles/lipgloss/glamour 等 UI 库**，让代码保持简洁。删除后，`pigo` 无 `-p` 参数、且 stdout 是终端时，不再进入全屏对话界面。
+本次改动的目标是**删除整个 `internal/tui` 包及其依赖的 bubbletea/bubbles/lipgloss/glamour 等 UI 库**，让代码保持简洁。删除后，`aikota` 无 `-p` 参数、且 stdout 是终端时，不再进入全屏对话界面。
 
 但以下三项能力必须在无 TUI 的前提下继续可用：
 1. **斜杠命令 + 技能**：`/model`、`/help`、用户自定义命令、`~/.agents/skills` 的 `/skill-name` 调用。
@@ -43,7 +43,7 @@
 - [ ] `go mod verify` 通过
 
 ### US-003: 极简行式 REPL 替代全屏交互
-**Description:** As a user, I want a simple line-based REPL when I run `pigo` without `-p` on a terminal, so that I can still hold a multi-turn conversation without the full-screen UI.
+**Description:** As a user, I want a simple line-based REPL when I run `aikota` without `-p` on a terminal, so that I can still hold a multi-turn conversation without the full-screen UI.
 
 **Acceptance Criteria:**
 - [ ] 无 `-p`、stdout 为终端时，进入行式 REPL：打印提示符 → 读取一行输入 → 运行 agent → 打印回复 → 回到提示符
@@ -151,6 +151,6 @@
 
 ## Open Questions
 
-- REPL 是否需要在每次提示符处显示当前模型名（如 `pigo(openrouter/free)> `）？倾向于显示，便于确认 `/model` 切换生效。
+- REPL 是否需要在每次提示符处显示当前模型名（如 `aikota(openrouter/free)> `）？倾向于显示，便于确认 `/model` 切换生效。
 - 中断（Ctrl+C）在 REPL 空闲时的行为：直接退出，还是打印一次提示再等第二次？倾向于第一次取消 run、空闲时第一次即退出（简化）。
 - 工具调用/结果的单行提示格式是否需要可配置（verbose / quiet）？初版固定简洁格式即可。

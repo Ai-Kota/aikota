@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "workflow",
   "meta": {
-    "title": "pigo Agent Loop",
+    "title": "aikota Agent Loop",
     "subtitle": "两层循环：流式回复 → 停止原因分派 → 工具执行 → 回填 → 续跑",
     "animation": "trace",
     "visual_preset": "signal-flow",
@@ -27,7 +27,7 @@
         "note": "停止原因决定续跑还是收尾。"
       }
     ],
-    "output": "docs/pigo-agent-loop.html",
+    "output": "docs/aikota-agent-loop.html",
     "viewBox": [760, 740]
   },
   "lanes": [

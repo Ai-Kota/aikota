@@ -1,5 +1,5 @@
 -- crossref.lua — minimal figure numbering + internal cross-references for
--- 《庖丁解牛 pigo》.
+-- 《庖丁解牛 aikota》.
 --
 -- Behaviour:
 --   * Each level-1 heading (chapter) gets a \label{chap:N} anchor.

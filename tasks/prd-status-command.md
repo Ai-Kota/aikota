@@ -2,10 +2,10 @@
 
 ## Introduction
 
-Add a new `/status` slash command to the pigo interactive REPL that prints a single,
+Add a new `/status` slash command to the aikota interactive REPL that prints a single,
 colored, at-a-glance status report combining **telemetry data** and **key configuration**.
 
-Today, runtime facts about a pigo session are scattered: `/model` shows the active
+Today, runtime facts about a aikota session are scattered: `/model` shows the active
 model, `/session` shows message/token/compaction counts, and structured telemetry
 (`TelemetryEvent`: per-tool durations, turn count, truncation/compaction counts,
 context utilization) is emitted once at each run's end into the stream but **never
@@ -174,7 +174,7 @@ safe to run.
 - No JSON / machine-readable output (`/status json`)—REPL colored text only.
 - No headless support: no `--status` CLI flag and no new stream-json event.
 - No modification or deprecation of `/session` or `/model`; they coexist unchanged.
-- No persistence of telemetry to disk across pigo restarts (in-memory, reset on exit).
+- No persistence of telemetry to disk across aikota restarts (in-memory, reset on exit).
 - No active network health-check / ping of the provider endpoint (connectivity is
   reported passively: endpoint URL + key presence). An active probe is out of scope to
   avoid latency and blocking I/O inside `/status`.

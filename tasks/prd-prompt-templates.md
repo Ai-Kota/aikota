@@ -2,14 +2,14 @@
 
 ## Introduction
 
-pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcommand.go` 的 `LoadUserCommandsDir` / `ParseUserCommand`）：把 `~/.aikota/commands/*.md` 加载成 `/name` 命令，文件正文是提示词模板，展开时仅做 `$ARGUMENTS` 替换。但相比 pi 的 **prompt templates**（<https://pi.dev/docs/latest/prompt-templates>），pigo 缺口很大：
+aikota 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcommand.go` 的 `LoadUserCommandsDir` / `ParseUserCommand`）：把 `~/.aikota/commands/*.md` 加载成 `/name` 命令，文件正文是提示词模板，展开时仅做 `$ARGUMENTS` 替换。但相比 pi 的 **prompt templates**（<https://pi.dev/docs/latest/prompt-templates>），aikota 缺口很大：
 
 - **加载来源单一**：只从 `~/.aikota/commands` 加载；缺项目级 `.aikota/prompts`（受信任时）、config.toml 的 `prompts` 数组、`--prompt-template` CLI flag、`--no-prompt-templates` 关闭开关。
 - **参数语法薄弱**：只支持 `$ARGUMENTS`；缺 pi 的 `$1`..`$N` 位置参数、`$@`、`${1:-default}` / `${@:-default}` / `${ARGUMENTS:-default}` 默认值、`${@:N}` / `${@:N:L}` 切片，以及 shell 风格的引号参数解析（`/x Button "click handler"`）。
 - **缺少 `argument-hint`**：frontmatter 只有 `description` / `name`，没有 `argument-hint`，自动补全也不展示参数提示。
 - **缺来源间优先级**：当前 `SlashRegistry` 只有"built-in 胜 + 用户层后写覆盖"，没有跨来源（项目/全局/包/配置/CLI）的优先级。
 
-本 PRD 的目标是让 pigo 对齐 pi 的 prompt templates：采用 `prompts` 命名（`~/.aikota/prompts`、`.aikota/prompts`），保留对旧 `~/.aikota/commands` 的向后兼容加载；实现完整的参数展开语法与 `argument-hint`；支持全部六种发现来源与明确的跨来源优先级；并把包管理器的安装目标迁移到 `~/.aikota/prompts`、识别 pi 的 `prompts/` 目录约定。
+本 PRD 的目标是让 aikota 对齐 pi 的 prompt templates：采用 `prompts` 命名（`~/.aikota/prompts`、`.aikota/prompts`），保留对旧 `~/.aikota/commands` 的向后兼容加载；实现完整的参数展开语法与 `argument-hint`；支持全部六种发现来源与明确的跨来源优先级；并把包管理器的安装目标迁移到 `~/.aikota/prompts`、识别 pi 的 `prompts/` 目录约定。
 
 参考文档：<https://pi.dev/docs/latest/prompt-templates>
 
@@ -76,7 +76,7 @@ pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcomma
 - [ ] Typecheck/lint 通过
 
 ### US-005: 全局 prompts 目录 + 旧 commands 向后兼容
-**Description:** 作为用户，我希望 pigo 从 `~/.aikota/prompts` 加载模板（对齐 pi），同时我旧的 `~/.aikota/commands/*.md` 仍能用。
+**Description:** 作为用户，我希望 aikota 从 `~/.aikota/prompts` 加载模板（对齐 pi），同时我旧的 `~/.aikota/commands/*.md` 仍能用。
 
 **Acceptance Criteria:**
 - [ ] `cmd/aikota/interactive.go` 在加载用户模板时同时读取 `$AIKOTA_HOME/prompts`（或 `~/.aikota/prompts`）与 `$AIKOTA_HOME/commands`（或 `~/.aikota/commands`）两个目录
@@ -98,7 +98,7 @@ pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcomma
 - [ ] Typecheck/lint 通过
 
 ### US-007: config.toml 的 prompts 数组
-**Description:** 作为用户，我希望在 `~/.config/pigo/config.toml` 写 `prompts = ["./my-prompts", "/abs/x.md"]` 来追加模板来源（文件或目录）。
+**Description:** 作为用户，我希望在 `~/.config/aikota/config.toml` 写 `prompts = ["./my-prompts", "/abs/x.md"]` 来追加模板来源（文件或目录）。
 
 **Acceptance Criteria:**
 - [ ] `fileConfig`（`cmd/aikota/config_file.go`）新增 `Prompts []string` 字段（TOML 键 `prompts`）
@@ -156,13 +156,13 @@ pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcomma
 - [ ] Typecheck/lint 通过
 
 ### US-012: 包管理器识别 prompts/ 约定并安装到 ~/.aikota/prompts
-**Description:** 作为包作者，我希望我的 pi 风格 prompt 包（模板放在 `prompts/` 下）能被 `pigo install` 正确安装到 `~/.aikota/prompts`。
+**Description:** 作为包作者，我希望我的 pi 风格 prompt 包（模板放在 `prompts/` 下）能被 `aikota install` 正确安装到 `~/.aikota/prompts`。
 
 **Acceptance Criteria:**
 - [ ] `internal/pkgmgr/distribute_prompt.go` 依次查找 `prompts/`、`commands/`、包根 `*.md`（现有 `commands/` 优先级降为第二）
 - [ ] 安装目标目录由 `CommandsDir()` 改为 `PromptsDir()`（`$AIKOTA_HOME/prompts` 或 `~/.aikota/prompts`）
 - [ ] 包根 `*.md` 回退时仍跳过 `README.md`
-- [ ] lockfile 记录的安装路径随之更新，`pigo uninstall` 能精确移除
+- [ ] lockfile 记录的安装路径随之更新，`aikota uninstall` 能精确移除
 - [ ] 新增/更新单测：`prompts/` 优先、回退 `commands/`、回退根 `*.md`、安装到 `~/.aikota/prompts`、卸载
 - [ ] Typecheck/lint 通过
 
@@ -224,7 +224,7 @@ pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcomma
 - **分词库复用**：shell 引号分词必须用成熟开源库（如 `github.com/kballard/go-shellquote`），遵循全局"复用而非自实现"规则，不手写 tokenizer。
 - **展开引擎自实现**：`${1:-default}` / `${@:N:L}` 等是 pi 专属语法，无通用库，自实现合适；核心难点是 `${...}` 与裸 `$` 的展开顺序（FR-14）。
 - **优先级与现有注册表的张力**：`SlashRegistry` 现为"built-in 胜 + 用户层后写覆盖"，需引入显式 tier 字段；skills/plugins 归入 Global 层，仅同级内后写覆盖。
-- **包安装与 package 层**：pigo 包管理器目前把模板**复制**进全局目录。按 FR-15 的 `global > package`，复制进 `~/.aikota/prompts` 的包模板实际与全局同层。若需真正独立的 package 层，需改安装到独立目录（如 `~/.aikota/packages/prompts/`）并按更低优先级发现——见 Open Questions，本期暂以"安装即并入 global"实现。
+- **包安装与 package 层**：aikota 包管理器目前把模板**复制**进全局目录。按 FR-15 的 `global > package`，复制进 `~/.aikota/prompts` 的包模板实际与全局同层。若需真正独立的 package 层，需改安装到独立目录（如 `~/.aikota/packages/prompts/`）并按更低优先级发现——见 Open Questions，本期暂以"安装即并入 global"实现。
 - **配置**：`fileConfig` 增 `Prompts []string`（TOML `prompts`）；`--prompt-template` 用 `StringArrayVar` 可重复；`--no-prompt-templates` 与 `--no-skills` 独立。
 - **加载顺序**：各来源加载后按 tier 注册进同一 `SlashRegistry`，由 tier 解析冲突；加载本身顺序无关。
 
@@ -234,7 +234,7 @@ pigo 已经有一套"声明式斜杠命令"机制（`internal/runtime/slashcomma
 - 现有 `~/.aikota/commands/*.md` 用户无回归（回归测试通过）。
 - Tab 补全与 `/help` 正确展示 `argument-hint` + `description` + 来源。
 - 在受信任项目放置 `.aikota/prompts/review.md` 后，立即可 `/review` 调用。
-- 一个 pi 风格 prompt 包（`prompts/` 目录）经 `pigo install` 后模板出现在 `~/.aikota/prompts` 且可调用。
+- 一个 pi 风格 prompt 包（`prompts/` 目录）经 `aikota install` 后模板出现在 `~/.aikota/prompts` 且可调用。
 
 ## Open Questions
 

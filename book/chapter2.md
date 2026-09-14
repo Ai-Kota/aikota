@@ -8,7 +8,7 @@
 
 ```go
 // Package agentcore defines the core "leaf" data types and control flow for the
-// pigo agent harness ... It is the foundation package that every other agent
+// aikota agent harness ... It is the foundation package that every other agent
 // sub-package depends on and imports nothing from them.
 ```
 
@@ -20,7 +20,7 @@
 
 在钻进具体类型之前，先认得一个手法——它在 `agentcore` 里出现了至少三遍（消息、内容、事件），认得它，后面的代码就都是同一个模子。
 
-pi 的原始实现是 TypeScript，消息和内容都是判别联合（discriminated union）：一个带 `type` 或 `role` 字段的对象，靠这个字段区分是哪种变体。Go 没有联合类型，pigo 用的是**密封接口（sealed interface）**：定义一个接口，让它带一个未导出的标记方法，这样包外的类型无法实现它，变体集合就被"封"在了包内。以内容块为例：
+pi 的原始实现是 TypeScript，消息和内容都是判别联合（discriminated union）：一个带 `type` 或 `role` 字段的对象，靠这个字段区分是哪种变体。Go 没有联合类型，aikota 用的是**密封接口（sealed interface）**：定义一个接口，让它带一个未导出的标记方法，这样包外的类型无法实现它，变体集合就被"封"在了包内。以内容块为例：
 
 ```go
 // Content is a sealed interface implemented by every content block kind.
@@ -33,13 +33,13 @@ type Content interface {
 
 `isContent()` 是未导出方法，只有 `agentcore` 包内的类型能实现，于是"内容块一共有哪几种"这件事被牢牢锁在包里。消费者拿到一个 `Content`，用 `switch c := c.(type)` 分派处理——编译器虽然不强制穷尽（这是 Go 相对 Rust `match` 的短板），但变体集合封闭这一点保证了不会有第三方偷偷塞进一个新变体。
 
-密封接口解决了"表达"问题，却留下一个"序列化"问题：Go 的 `encoding/json` 不认识判别字段，反序列化到接口类型时它不知道该造哪个具体结构。pigo 的解法是给每个装着接口切片的容器写自定义 `UnmarshalJSON`：先只解出判别字段（peek），再据此解到具体类型。这个"peek 判别字段 → 分派到具体 struct"的两步解码，就是本章会反复见到的第二个模子。把这两个手法记在脑子里，下面的类型都是它们的实例。
+密封接口解决了"表达"问题，却留下一个"序列化"问题：Go 的 `encoding/json` 不认识判别字段，反序列化到接口类型时它不知道该造哪个具体结构。aikota 的解法是给每个装着接口切片的容器写自定义 `UnmarshalJSON`：先只解出判别字段（peek），再据此解到具体类型。这个"peek 判别字段 → 分派到具体 struct"的两步解码，就是本章会反复见到的第二个模子。把这两个手法记在脑子里，下面的类型都是它们的实例。
 
 ![图2-2 封口的变体罐与两步拆信](images/fig2-2.png){#fig:2-2 width=100%}
 
 ## 消息模型：四种角色的密封接口
 
-一次对话在 pigo 里是一列消息（message），每条消息有一个角色（role）。`message.go` 顶部先把角色常量列齐，它们直接对齐 pi 的线上格式：
+一次对话在 aikota 里是一列消息（message），每条消息有一个角色（role）。`message.go` 顶部先把角色常量列齐，它们直接对齐 pi 的线上格式：
 
 ```go
 const (
@@ -264,7 +264,7 @@ type ImageContent struct {
 
 `Data` 是 base64 编码的图像数据，配 `MimeType` 说明格式。第1章无头模式里那个 `ui.BuildUserContent`"支持图片引用"，产出的正是把图片读成 `ImageContent` 塞进用户消息的 `ContentList`。
 
-四个变体各自实现空的 `isContent()` 完成密封，然后 pigo 给每种块配了一个构造函数，全部替调用方把 `Type` 判别字段填好，杜绝"手写结构体时忘了设 type"这类错位：
+四个变体各自实现空的 `isContent()` 完成密封，然后 aikota 给每种块配了一个构造函数，全部替调用方把 `Type` 判别字段填好，杜绝"手写结构体时忘了设 type"这类错位：
 
 ```go
 func NewTextContent(text string) TextContent {
@@ -324,7 +324,7 @@ func ContentToText(list ContentList) string {
 
 ```go
 // AgentEvent is the sealed interface implemented by every event the loop emits.
-// Consumers dispatch with a type switch, consistent with Content. pigo covers
+// Consumers dispatch with a type switch, consistent with Content. aikota covers
 // all 10 of pi's event types (PRD FR-24).
 type AgentEvent interface {
 	isAgentEvent()
@@ -332,7 +332,7 @@ type AgentEvent interface {
 }
 ```
 
-注释里那句"covers all 10 of pi's event types"是本节的锚：pigo 要覆盖 pi 事件全集。有意思的是，`event.go` 里的判别常量其实列了**十一个**——多出来的是 `compaction`：
+注释里那句"covers all 10 of pi's event types"是本节的锚：aikota 要覆盖 pi 事件全集。有意思的是，`event.go` 里的判别常量其实列了**十一个**——多出来的是 `compaction`：
 
 ```go
 const (
@@ -350,7 +350,7 @@ const (
 )
 ```
 
-前十个是 pi 的事件全集，对应"agent 起止 / turn 起止 / message 起止与更新 / tool 执行起止与更新"这三组生命周期；`compaction` 是 pigo 为上下文压缩额外补上的一种（对应第6章），因此严格说是"pi 的 10 种 + pigo 的 1 种"。这些事件按嵌套层级可以这样理解：一次 run 由 `agent_start`/`agent_end` 包住，中间是若干个 turn（`turn_start`/`turn_end`），每个 turn 里有一条流式消息（`message_start` → 若干 `message_update` → `message_end`）和随后的工具执行（`tool_execution_start` → `tool_execution_update` → `tool_execution_end`）。
+前十个是 pi 的事件全集，对应"agent 起止 / turn 起止 / message 起止与更新 / tool 执行起止与更新"这三组生命周期；`compaction` 是 aikota 为上下文压缩额外补上的一种（对应第6章），因此严格说是"pi 的 10 种 + aikota 的 1 种"。这些事件按嵌套层级可以这样理解：一次 run 由 `agent_start`/`agent_end` 包住，中间是若干个 turn（`turn_start`/`turn_end`），每个 turn 里有一条流式消息（`message_start` → 若干 `message_update` → `message_end`）和随后的工具执行（`tool_execution_start` → `tool_execution_update` → `tool_execution_end`）。
 
 ![图2-4 层层相套的事件套盒](images/fig2-4.png){#fig:2-4 width=100%}
 
@@ -390,7 +390,7 @@ type MessageUpdateEvent struct {
 
 `Message` 是"当前累积的部分消息"，`AssistantMessageEvent` 是"产生这次增量的那个 Provider 级原始事件"——渲染层既能拿累积态刷新画面，也能触到底层增量做精细控制。三个工具执行事件（start/update/end）则分别带 `ToolCallID`、`ToolName` 和不同粒度的结果，`ToolExecutionEndEvent` 还带一个 `IsError` 标志。
 
-**压缩事件** 是 pigo 补的那一种，字段最丰富，因为它要同时服务"成功压缩"和"压缩失败"两种情形：
+**压缩事件** 是 aikota 补的那一种，字段最丰富，因为它要同时服务"成功压缩"和"压缩失败"两种情形：
 
 ```go
 type CompactionEvent struct {
@@ -409,7 +409,7 @@ type CompactionEvent struct {
 
 ## EventStream：Go 版的异步生成器
 
-事件定义好了，还得有个东西把它们从"生产者（循环）"送到"消费者（渲染/序列化）"。这就是 `event_stream.go` 里的 `EventStream[T, R]`——一个用泛型写的、带最终结果的事件流。它的定位，注释说得很清楚：pi 用 async generator 表达"边产事件、最后给一个结果 R"，Go 没有 async generator，pigo 用 channel + 一次性 result 复刻：
+事件定义好了，还得有个东西把它们从"生产者（循环）"送到"消费者（渲染/序列化）"。这就是 `event_stream.go` 里的 `EventStream[T, R]`——一个用泛型写的、带最终结果的事件流。它的定位，注释说得很清楚：pi 用 async generator 表达"边产事件、最后给一个结果 R"，Go 没有 async generator，aikota 用 channel + 一次性 result 复刻：
 
 ```go
 type EventStream[T any, R any] struct {
@@ -510,7 +510,7 @@ type AgentToolResult struct {
 }
 ```
 
-`Terminate` 用 `*bool` 而非 `bool`，是为了区分"没设"和"显式设成 false"——注释说明，循环只有在**一整批工具结果全部 `Terminate=true`** 时才提前终止 run。这个"指针三态"的手法（nil 表示未提供，非 nil 表示明确取值）在下一节的钩子契约里会成组出现，是 pigo 把 pi 里 `??` 空值合并语义翻译成 Go 的通用译法。
+`Terminate` 用 `*bool` 而非 `bool`，是为了区分"没设"和"显式设成 false"——注释说明，循环只有在**一整批工具结果全部 `Terminate=true`** 时才提前终止 run。这个"指针三态"的手法（nil 表示未提供，非 nil 表示明确取值）在下一节的钩子契约里会成组出现，是 aikota 把 pi 里 `??` 空值合并语义翻译成 Go 的通用译法。
 
 ## 钩子契约：贯穿循环各阶段的扩展点
 
@@ -606,7 +606,7 @@ type ThinkingLevelMap map[ThinkingLevel]*string
 
 **目标**：亲眼看清"密封接口 + 两步判别式解码"这个模子——把一段手写的 JSON 反序列化成 `MessageList`，观察它如何按 `role`/`type` 判别字段还原出具体的消息与内容块，以及碰到未知判别字段时如何报错。
 
-**前置**：在 pigo 仓库根目录下能 `go test`。本实验不需要任何 API Key，纯粹在本地验证 `agentcore` 的解码逻辑。
+**前置**：在 aikota 仓库根目录下能 `go test`。本实验不需要任何 API Key，纯粹在本地验证 `agentcore` 的解码逻辑。
 
 **步骤 1**：在仓库根目录建一个临时测试文件 `internal/agentcore/exp2_1_test.go`，喂给 `MessageList` 一段含文本块和图片块的用户消息、以及一条带工具调用块的助手消息：
 
@@ -668,15 +668,15 @@ go test ./internal/agentcore/ -run TestExp2_1_Decode -v
 - **一个手法，三处复用**：密封接口（未导出标记方法封住变体集合）+ 两步判别式解码（peek 判别字段 → 分派到具体 struct），在消息（`role`）、内容（`type`）、事件（`EventType`）上各跑了一遍。认得这个模子，`agentcore` 的类型就都是它的实例。
 - **消息模型**：`Message` 接口下四种角色——`UserMessage`/`AssistantMessage`/`ToolResultMessage`/`CompactionMessage`；`AgentMessage` 是 `Message` 的意图别名；`StopReason` 的五个取值是循环状态机的输入；压缩消息把 `Details` 存成 `json.RawMessage` 以维持依赖单向。
 - **内容块**：`Content` 接口下 text/thinking/toolCall/image 四种形态承载多模态；构造函数替调用方填好判别字段；`ContentToText` 把结构化内容降维成 OpenAI 兼容网关认的纯文本。
-- **事件与流**：`AgentEvent` 覆盖 pi 的 10 种事件、pigo 另补 `compaction` 一种；`EventStream[T,R]` 用 channel + 一次性 result 复刻 pi 的 async generator，结果不走事件通道、`Emit` 盯着 `ctx.Done()` 防泄漏，`LoopEventStream` 是它在循环里的具体化。
+- **事件与流**：`AgentEvent` 覆盖 pi 的 10 种事件、aikota 另补 `compaction` 一种；`EventStream[T,R]` 用 channel + 一次性 result 复刻 pi 的 async generator，结果不走事件通道、`Emit` 盯着 `ctx.Done()` 防泄漏，`LoopEventStream` 是它在循环里的具体化。
 - **工具与钩子**：`AgentTool` 接口让内置工具与插件工具被平等调用，`AgentToolResult.Terminate` 用指针三态表达提前终止；两组钩子（工具调用的 prepare/before/after、循环每轮的 turn-update）只在这层定义形状，接线留给上层——`ThinkingLevelMap` 的 `*string` 值是"指针区分三态"的典型。
 
-把第1章的"程序怎么搭起来"和本章的"贯穿全局的类型契约"合到一起，我们就有了理解 pigo 运转的两块基石。下一步走进真正让这些类型动起来的地方：第3章拆解两层 Agent 循环——内层如何"流式回复 → 执行工具 → 回填"，外层如何靠后续消息续跑，本章定义的事件、消息、钩子将在那里被逐一点亮。
+把第1章的"程序怎么搭起来"和本章的"贯穿全局的类型契约"合到一起，我们就有了理解 aikota 运转的两块基石。下一步走进真正让这些类型动起来的地方：第3章拆解两层 Agent 循环——内层如何"流式回复 → 执行工具 → 回填"，外层如何靠后续消息续跑，本章定义的事件、消息、钩子将在那里被逐一点亮。
 
 ## 思考题
 
-1. `agentcore` 用"密封接口 + 未导出标记方法"来封住变体集合，相比 Go 里另一种常见做法（一个结构体带 `Type` 字段和一堆可空指针成员），前者在类型安全和序列化上各有什么得失？为什么 pigo 选了前者？
+1. `agentcore` 用"密封接口 + 未导出标记方法"来封住变体集合，相比 Go 里另一种常见做法（一个结构体带 `Type` 字段和一堆可空指针成员），前者在类型安全和序列化上各有什么得失？为什么 aikota 选了前者？
 2. `CompactionMessage.Details` 用的是 `json.RawMessage`，而 `ToolResultMessage.Details` 和 `AgentToolResult.Details` 用的是 `any`。对照三处注释，说说为什么压缩消息偏偏要用原始 JSON——这和"叶子包不依赖任何人"的依赖方向有什么关系？
 3. `EventStream` 的最终结果 `R` 刻意不走事件通道，而是用独立的 `resultCh` + `sync.Once` 暴露。如果把结果也当成一个特殊事件塞进 `ch`，第1章无头模式 PrintMode"忽略中间事件、只取最终文本"的写法会遇到什么麻烦？
-4. `AgentToolResult.Terminate`、`AfterToolCallResult` 的全部字段、`ThinkingLevelMap` 的值都用了指针来区分"未提供"和"提供了零值"。这套"指针三态"是在翻译 pi 的哪个语言特性？如果 pigo 改用 `bool`/值类型，会在哪些具体场景下丢失语义？
+4. `AgentToolResult.Terminate`、`AfterToolCallResult` 的全部字段、`ThinkingLevelMap` 的值都用了指针来区分"未提供"和"提供了零值"。这套"指针三态"是在翻译 pi 的哪个语言特性？如果 aikota 改用 `bool`/值类型，会在哪些具体场景下丢失语义？
 5. `hooks.go` 只定义钩子的类型契约，真正的接线字段（`GetFollowUpMessages` 等）却挂在第3章的 `runtime.RunConfig` 上。这种"地基定形状、上层做接线"的分工，对 `agentcore` 作为"不依赖任何人的叶子包"这一目标有什么帮助？如果把接线也放进 `agentcore`，依赖图会变成什么样？

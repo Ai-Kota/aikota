@@ -2,9 +2,9 @@
 
 > **主线坐标｜第 ⑧ 站的一个特例**：当主线上"执行工具"这一步点名的"工具"其实是一次委派时，执行器不再是读个文件，而是拉起**另一个进程**跑一整圈独立的循环，只把结论作为工具结果交回主线。本章拆的就是这条岔路。
 
-到这里，pigo 的主循环已经能读文件、跑命令、抓网页，也能在逼近 token 上限时压缩上下文。但有一类任务，单靠一条越堆越长的主对话并不划算：让模型先去"调研"一大堆资料、再回来汇报结论。调研过程会往上下文里灌进大量中间文本，等结论出来时，这些原始材料早已没用，却还占着主对话的窗口。更自然的做法是把这类子任务丢给一个"分身"——它带着独立的上下文跑完，只把最终结论交回来，中间的噪声留在它自己那一摊。
+到这里，aikota 的主循环已经能读文件、跑命令、抓网页，也能在逼近 token 上限时压缩上下文。但有一类任务，单靠一条越堆越长的主对话并不划算：让模型先去"调研"一大堆资料、再回来汇报结论。调研过程会往上下文里灌进大量中间文本，等结论出来时，这些原始材料早已没用，却还占着主对话的窗口。更自然的做法是把这类子任务丢给一个"分身"——它带着独立的上下文跑完，只把最终结论交回来，中间的噪声留在它自己那一摊。
 
-这就是子 Agent。pigo 把它设计成一件很朴素的事：**一个子 Agent 就是一次完整的 Agent 循环，有自己独立的 `AgentContext`（独立的系统提示、消息历史、工具集），由父 Agent 通过一次普通的工具调用启动。**子循环跑到收尾，它最后一条 assistant 文本作为工具结果回填给父循环——所以从父循环的视角看，子 Agent 跟 `read`、`bash` 没有本质区别，就是又一个工具。第 5 章讲的批量执行器已经会把并行的工具调用放进各自的 goroutine 里跑，因此多个子 Agent 天然可以并发。
+这就是子 Agent。aikota 把它设计成一件很朴素的事：**一个子 Agent 就是一次完整的 Agent 循环，有自己独立的 `AgentContext`（独立的系统提示、消息历史、工具集），由父 Agent 通过一次普通的工具调用启动。**子循环跑到收尾，它最后一条 assistant 文本作为工具结果回填给父循环——所以从父循环的视角看，子 Agent 跟 `read`、`bash` 没有本质区别，就是又一个工具。第 5 章讲的批量执行器已经会把并行的工具调用放进各自的 goroutine 里跑，因此多个子 Agent 天然可以并发。
 
 <!--
 生图prompt：
@@ -27,24 +27,24 @@ Constraints: One image explains only one core structure. Main subject 40%-60% of
 -->
 ![图9-1 派出分身消化噪声](images/fig9-1.png){#fig:9-1 width=100%}
 
-本章的重点不在"子 Agent 是什么"，而在 pigo 给它准备的第二种活法：**进程隔离**。父进程可以不在自己体内跑子循环，而是 fork 出一个全新的 `pigo` 子进程，通过 stdio 上的 JSON-RPC 把这次运行委派出去。我们会顺着这条链走完：先看两种隔离模式如何在一个 `SubAgentSpec` 里选择（`internal/runtime/subagent.go`），再看父侧 `SubAgentTool` 怎么驱动子进程、子进程侧 `pigo --subagent-rpc` 怎么应答（`internal/cli/headless/subagent_rpc.go`），最后拆开垫在两者之间的那层 JSON-RPC 2.0 传输（`internal/jsonrpc`）。
+本章的重点不在"子 Agent 是什么"，而在 aikota 给它准备的第二种活法：**进程隔离**。父进程可以不在自己体内跑子循环，而是 fork 出一个全新的 `aikota` 子进程，通过 stdio 上的 JSON-RPC 把这次运行委派出去。我们会顺着这条链走完：先看两种隔离模式如何在一个 `SubAgentSpec` 里选择（`internal/runtime/subagent.go`），再看父侧 `SubAgentTool` 怎么驱动子进程、子进程侧 `aikota --subagent-rpc` 怎么应答（`internal/cli/headless/subagent_rpc.go`），最后拆开垫在两者之间的那层 JSON-RPC 2.0 传输（`internal/jsonrpc`）。
 
 ## 两种隔离：goroutine 与进程
 
-一个子 Agent 该在哪儿跑？pigo 用 `SubAgentIsolation` 给出两个选项：
+一个子 Agent 该在哪儿跑？aikota 用 `SubAgentIsolation` 给出两个选项：
 
 ```go
 const (
 	// 在进程内的 goroutine 里跑子循环。默认，也是最早的行为。
 	SubAgentIsolationGoroutine SubAgentIsolation = iota
-	// 在一个全新的 pigo 子进程里跑，通过 stdio JSON-RPC 委派。
+	// 在一个全新的 aikota 子进程里跑，通过 stdio JSON-RPC 委派。
 	SubAgentIsolationProcess
 )
 ```
 
 零值是 `Goroutine`，所以什么都不设时，子 Agent 就在父进程内的一个 goroutine 里跑——它和父进程共享同一个地址空间，靠父循环传下来的 `ctx` 取消。这是最轻的方式，但也意味着子循环里的一次 panic、一处内存泄漏，都可能连累父进程。
 
-`Process` 模式换来的正是这道隔离。父进程 spawn 一个干净的 `pigo` 子进程，子循环跑在独立的进程里，它的崩溃、资源泄漏都困在自己那一侧。父进程只会从传输层察觉到"子进程没给出应答"，然后把它当成一次工具错误上报，父循环不受影响。
+`Process` 模式换来的正是这道隔离。父进程 spawn 一个干净的 `aikota` 子进程，子循环跑在独立的进程里，它的崩溃、资源泄漏都困在自己那一侧。父进程只会从传输层察觉到"子进程没给出应答"，然后把它当成一次工具错误上报，父循环不受影响。
 
 <!--
 生图prompt：
@@ -85,7 +85,7 @@ type SubAgentSpec struct {
 
 ```go
 type SubAgentProcessConfig struct {
-	Command   string   // 要 spawn 的可执行文件，空则用 os.Executable()（即 pigo 自己）
+	Command   string   // 要 spawn 的可执行文件，空则用 os.Executable()（即 aikota 自己）
 	Args      []string // 追加到 subagent-rpc flag 之后的参数
 	Model     string   // 子进程运行的模型 id，必填
 	BaseURL   string   // 自定义网关的端点与协议覆盖
@@ -203,9 +203,9 @@ final, err := DrainStream(ctx, stream, h)
 
 子循环若以 `StopReasonError` 或 `StopReasonAborted` 收尾，`executeGoroutine` 会把它转成一个 Go error 返回——这样父侧的工具执行器会把结果标记为 `IsError`，父模型就能收到"这次委派失败了"的信号。否则一次停在 error 上的子运行会伪装成一次"携带错误文本的成功委派"，把父模型带偏。
 
-## 子进程侧：pigo --subagent-rpc
+## 子进程侧：aikota --subagent-rpc
 
-进程模式的另一端，是被 spawn 出来的那个 `pigo`。第 1 章拆 `dispatch` 时我们见过它的五条岔路，其中第一条就是这里：
+进程模式的另一端，是被 spawn 出来的那个 `aikota`。第 1 章拆 `dispatch` 时我们见过它的五条岔路，其中第一条就是这里：
 
 ```go
 if opts.subagentRPC {
@@ -234,7 +234,7 @@ func RunSubAgentRPC(ctx context.Context, in io.Reader, out, errOut io.Writer) in
 		handleSubAgentRequest(ctx, enc, &req)
 	}
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(errOut, "pigo: subagent-rpc stdin: %v\n", err)
+		fmt.Fprintf(errOut, "aikota: subagent-rpc stdin: %v\n", err)
 		return 1
 	}
 	return 0
@@ -253,7 +253,7 @@ Pure white background. Minimalist editorial doodle with black hand-drawn pen lin
 Recurring IP character required:
 小土拨鼠 (Little Gopher), an original IP: a round, chubby, warm brown-yellow gopher inspired by the Go language Gopher, but cuter, cleaner and more soothing. Round head with a pair of small round ears; two small round curious eyes; a tiny nose and two small signature front teeth; short little limbs and soft paws; warm brown-yellow fur with a lighter belly; plump rounded proportions, earnest yet gently funny. 小土拨鼠 must perform the core conceptual action, not decorate the scene. Keep it a clean round soothing cartoon gopher, not a realistic rat/hamster, not the stiff original Go Gopher, not anime, not a mascot.
 
-Theme: pigo --subagent-rpc 逐行读请求、逐行应答的极简服务器循环
+Theme: aikota --subagent-rpc 逐行读请求、逐行应答的极简服务器循环
 Structure type: 系统局部
 Core idea: 子进程像个窗口小职员，从 stdin 传送带上一行行接过 JSON 请求，每行跑一次子 Agent，把结果或错误从 stdout 递出，直到传送带没了才关灯下班
 Composition: 中央一只小土拨鼠坐在一个开着小窗的柜台后。左边一条 stdin 传送带一行行送来写着 JSON 请求的纸条，柜台前立着一块限高杆写"16MiB"，一张过厚的纸条被限高杆卡住冒红光；小土拨鼠处理完一张就从右边 stdout 窗口递出一张结果纸条。传送带尽头空了，小土拨鼠伸手去关一盏灯
@@ -370,9 +370,9 @@ Constraints: One image explains only one core structure. Main subject 40%-60% of
 func defaultProcessCall(ctx context.Context, cfg SubAgentProcessConfig, params SubAgentRunParams) (string, error) {
 	command := cfg.Command
 	if command == "" {
-		exe, err := os.Executable()   // 默认用 pigo 自己
+		exe, err := os.Executable()   // 默认用 aikota 自己
 		if err != nil {
-			return "", fmt.Errorf("resolve pigo executable: %w", err)
+			return "", fmt.Errorf("resolve aikota executable: %w", err)
 		}
 		command = exe
 	}
@@ -389,21 +389,21 @@ func defaultProcessCall(ctx context.Context, cfg SubAgentProcessConfig, params S
 }
 ```
 
-一次委派的全貌于是清晰了：父进程 spawn `pigo --subagent-rpc`，往它 stdin 发一条 `subagent/run` 请求，等一条响应，然后 `Close`。`Close` 本身也有讲究——它先关子进程 stdin（示意优雅退场），再等一小段 `closeGrace`（5 秒），子进程若不识趣地赖着不走，就强杀。这样一个卡死的子进程（忽略 stdin EOF、又攥着 stdout 不放）也没法把父进程永远拖住。父 `ctx` 取消时，`Call` 返回、`defer client.Close()` 触发，子进程随之被终结——第 3 章那种"父运行被中断，在途的一切也应一并中止"的语义，在进程边界上依然成立。
+一次委派的全貌于是清晰了：父进程 spawn `aikota --subagent-rpc`，往它 stdin 发一条 `subagent/run` 请求，等一条响应，然后 `Close`。`Close` 本身也有讲究——它先关子进程 stdin（示意优雅退场），再等一小段 `closeGrace`（5 秒），子进程若不识趣地赖着不走，就强杀。这样一个卡死的子进程（忽略 stdin EOF、又攥着 stdout 不放）也没法把父进程永远拖住。父 `ctx` 取消时，`Call` 返回、`defer client.Close()` 触发，子进程随之被终结——第 3 章那种"父运行被中断，在途的一切也应一并中止"的语义，在进程边界上依然成立。
 
-![图9-7 子 Agent 的一次委派：父进程 spawn pigo --subagent-rpc，在 stdio 上跑一轮 subagent/run，回结果后 Close 收尾](images/fig9-7.svg){#fig:9-7 width=100%}
+![图9-7 子 Agent 的一次委派：父进程 spawn aikota --subagent-rpc，在 stdio 上跑一轮 subagent/run，回结果后 Close 收尾](images/fig9-7.svg){#fig:9-7 width=100%}
 
 ## 实验 9-1 ★：手动扮演父进程，用 stdio 驱动一次 subagent/run {.unnumbered}
 
-**目标**：绕开 `SubAgentTool`，亲手往 `pigo --subagent-rpc` 的 stdin 喂一条 JSON-RPC 请求，观察它作为子进程如何应答——先看一条"参数缺失"如何变成结构化的 RPC 错误，从而印证 `handleSubAgentRequest` 的校验分支，且全程不需要任何真实 API Key。
+**目标**：绕开 `SubAgentTool`，亲手往 `aikota --subagent-rpc` 的 stdin 喂一条 JSON-RPC 请求，观察它作为子进程如何应答——先看一条"参数缺失"如何变成结构化的 RPC 错误，从而印证 `handleSubAgentRequest` 的校验分支，且全程不需要任何真实 API Key。
 
-**前置**：在仓库根目录能 `go run ./cmd/pigo`（或已 `go build -o pigo ./cmd/pigo`）。
+**前置**：在仓库根目录能 `go run ./cmd/aikota`（或已 `go build -o aikota ./cmd/aikota`）。
 
 **步骤 1**：发一条**缺 `model`** 的 `subagent/run` 请求（`params` 只给了 `prompt`），看子进程如何拒绝。JSON-RPC 是行分隔的，一行一条：
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"subagent/run","params":{"prompt":"你好"}}' \
-  | go run ./cmd/pigo --subagent-rpc
+  | go run ./cmd/aikota --subagent-rpc
 ```
 
 **预期输出**（一行 JSON 响应，`id` 与请求一致，`error.code` 为 `-32602`，即规范里的 invalid params）：
@@ -418,7 +418,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"subagent/run","params":{"prompt":"你好
 
 ```bash
 echo '{"jsonrpc":"2.0","id":2,"method":"subagent/nope","params":{}}' \
-  | go run ./cmd/pigo --subagent-rpc
+  | go run ./cmd/aikota --subagent-rpc
 ```
 
 **预期**：`error.code` 为 `-32601`，消息形如 `method not found: subagent/nope`。
@@ -427,14 +427,14 @@ echo '{"jsonrpc":"2.0","id":2,"method":"subagent/nope","params":{}}' \
 
 ## 本章小结
 
-本章拆解了 pigo 的子 Agent 编排，尤其是它的进程隔离模式：
+本章拆解了 aikota 的子 Agent 编排，尤其是它的进程隔离模式：
 
 - **子 Agent 即工具**：一个子 Agent 是一次带独立 `AgentContext` 的完整循环，由父 Agent 通过普通工具调用启动，最终 assistant 文本回填给父循环。`SubAgentTool`（`internal/runtime/subagent.go`）把 `SubAgentSpec` 适配成 `agentcore.AgentTool`，声明为可并发。
-- **两种隔离**：`SubAgentIsolationGoroutine`（默认）在父进程内的 goroutine 里跑，轻但不隔离故障；`SubAgentIsolationProcess` spawn 一个新 `pigo` 子进程，子循环的崩溃被困在子侧、父侧感知为工具错误。进程模式只能转发可序列化配置（模型 id、工具**名字**），由子进程自行解析 Provider。
-- **子进程侧**：`pigo --subagent-rpc` 经 `dispatch` 进入 `headless.RunSubAgentRPC`（`internal/cli/headless/subagent_rpc.go`），逐行读 JSON-RPC 请求，用与 CLI 一致的 `provider.ResolveProvider` + `run.BuiltinTools` 重演装配，交 `RunSubAgentOnce` 跑循环；方法/参数/Provider/子运行的各类失败分别映射成 `-32601`/`-32602`/`-32603`/`-32000` 错误码。
+- **两种隔离**：`SubAgentIsolationGoroutine`（默认）在父进程内的 goroutine 里跑，轻但不隔离故障；`SubAgentIsolationProcess` spawn 一个新 `aikota` 子进程，子循环的崩溃被困在子侧、父侧感知为工具错误。进程模式只能转发可序列化配置（模型 id、工具**名字**），由子进程自行解析 Provider。
+- **子进程侧**：`aikota --subagent-rpc` 经 `dispatch` 进入 `headless.RunSubAgentRPC`（`internal/cli/headless/subagent_rpc.go`），逐行读 JSON-RPC 请求，用与 CLI 一致的 `provider.ResolveProvider` + `run.BuiltinTools` 重演装配，交 `RunSubAgentOnce` 跑循环；方法/参数/Provider/子运行的各类失败分别映射成 `-32601`/`-32602`/`-32603`/`-32000` 错误码。
 - **JSON-RPC 传输**：`internal/jsonrpc` 提供一套 spawn 子进程、在 stdio 上说 line-delimited JSON-RPC 2.0 的最小客户端，被 MCP、插件与子 Agent 共享。`Client.Call` 靠 id 关联响应、对并发安全；子进程崩溃表现为 stdout EOF，`readLoop` 借此 `failAll`，把它翻译成父侧的一次工具错误。
 
-从主循环到工具，再到把一次委派关进独立进程，pigo 的"内核"部分至此拆完。下一步（第 10 章）我们走向最外层：Skills、斜杠命令、Plugins 与包管理器如何让这台 Agent 可插拔地生长——而它们复用的，正是本章这套 JSON-RPC 传输地基。
+从主循环到工具，再到把一次委派关进独立进程，aikota 的"内核"部分至此拆完。下一步（第 10 章）我们走向最外层：Skills、斜杠命令、Plugins 与包管理器如何让这台 Agent 可插拔地生长——而它们复用的，正是本章这套 JSON-RPC 传输地基。
 
 ## 思考题
 

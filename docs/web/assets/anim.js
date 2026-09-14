@@ -1,4 +1,4 @@
-/* pigo site — intro animations (anime.js, zero-build, offline)
+/* aikota site — intro animations (anime.js, zero-build, offline)
  *
  * Two effects, both graceful when JS/anime is unavailable:
  *   1. Hero intro   — a one-time fade + rise stagger over the hero elements.
@@ -6,7 +6,7 @@
  *                     when it scrolls into view (IntersectionObserver).
  *
  * i18n.js rewrites innerHTML on every language toggle, which wipes the
- * per-char spans we inject. So we listen for the `pigo:lang` custom event
+ * per-char spans we inject. So we listen for the `aikota:lang` custom event
  * it dispatches and re-run the typewriter for any h2 already on screen.
  *
  * prefers-reduced-motion is honored: we leave text/opacity fully visible
@@ -102,7 +102,7 @@
     if (!h1) return;
     if (reduce) return; // visible by default
     typewriterRich(h1);
-    window.addEventListener("pigo:lang", function () {
+    window.addEventListener("aikota:lang", function () {
       if (reduce) return;
       typewriterRich(h1);
     });
@@ -173,7 +173,7 @@
 
     // On language switch, i18n rewrites innerHTML (plain text restored).
     // Re-run the typewriter for headings currently in the viewport.
-    window.addEventListener("pigo:lang", function () {
+    window.addEventListener("aikota:lang", function () {
       if (reduce) return;
       headings().forEach(function (h) {
         var r = h.getBoundingClientRect();

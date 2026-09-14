@@ -2,9 +2,9 @@
 
 > **主线坐标｜第 ③–④、⑥、⑨–⑫ 站（全书的心脏）**：《主线导读》里那句"循环反复地『让 Provider 流式回复 → 执行工具 → 回填』直到某轮不再点名工具"，整根主干都在本章。它向下把请求托付给第4章的 Provider，把工具执行托付给第5章，逐轮之间还夹着第6章的压缩钩子，收尾后落盘给第7章。
 
-第1章把 pigo 从 `main()` 到 `dispatch()` 的装配骨架拆了一遍，第2章又把 `agentcore` 里那套贯穿全局的类型契约——消息、内容、事件、工具、钩子——摆到了台面上。装配就绪、契约在手，接下来该问最核心的一个问题了：一次对话到底是怎么"转"起来的？
+第1章把 aikota 从 `main()` 到 `dispatch()` 的装配骨架拆了一遍，第2章又把 `agentcore` 里那套贯穿全局的类型契约——消息、内容、事件、工具、钩子——摆到了台面上。装配就绪、契约在手，接下来该问最核心的一个问题了：一次对话到底是怎么"转"起来的？
 
-引言里那个朴素公式——LLM + 上下文 + 工具，靠一个循环串起来——在这一章要落到真正的代码上。但真读进 `internal/runtime/loop.go`，你会发现它不是一个循环，而是**两个嵌套的循环**：内层管"一轮回复到底要不要接着说"，外层管"这一轮说完了还有没有下文"。这两层各自回答一个问题，合起来才构成 pigo 所谓的一次 run。
+引言里那个朴素公式——LLM + 上下文 + 工具，靠一个循环串起来——在这一章要落到真正的代码上。但真读进 `internal/runtime/loop.go`，你会发现它不是一个循环，而是**两个嵌套的循环**：内层管"一轮回复到底要不要接着说"，外层管"这一轮说完了还有没有下文"。这两层各自回答一个问题，合起来才构成 aikota 所谓的一次 run。
 
 本章就沿着这两层循环走一遍。先钻到最里面，看单次流式回复 `streamAssistantResponse` 是怎么把上下文塑形成请求、又怎么把流式碎片回填成一条完整消息的；再退一步看内层循环怎么在"回复→执行工具→回填"之间转圈，直到某一轮不再点名任何工具而自然收尾；然后退到最外层，看 `getFollowUpMessages` 与 steering 消息如何让一个已经收尾的 run 又接着跑下去；最后把散落在各处的六个钩子和三种"非正常"停止原因收拢成一张全景图。锚定的源码是 `internal/runtime` 下的 `loop.go`、`stream_response.go`、`prompt.go` 与 `render.go` 四个文件。
 
@@ -180,7 +180,7 @@ case agentcore.StopReasonError, agentcore.StopReasonAborted:
 
 这个 `switch` 把三种"非正常"停止先拦下来（它们的完整含义留到本章后面统一讲）：
 
-- `length`：回复被输出 token 上限**截断**了。这时如果消息里还带着没写完的工具调用，直接执行是危险的——参数可能是残缺的。pigo 的处理是调 `failToolCallsFromTruncatedMessage`，给每个被截断的工具调用**造一条错误结果**，告诉模型"你上一条被截断了，这个工具没执行，请缩短后重发"，然后 `continue` 回到 turn 开头让模型重试。这是三种里唯一"拦下来还接着跑"的。
+- `length`：回复被输出 token 上限**截断**了。这时如果消息里还带着没写完的工具调用，直接执行是危险的——参数可能是残缺的。aikota 的处理是调 `failToolCallsFromTruncatedMessage`，给每个被截断的工具调用**造一条错误结果**，告诉模型"你上一条被截断了，这个工具没执行，请缩短后重发"，然后 `continue` 回到 turn 开头让模型重试。这是三种里唯一"拦下来还接着跑"的。
 - `error` / `aborted`：终态失败。发一个 `TurnEndEvent` 记录这条消息，然后 `finish()` 直接结束整个 run。
 
 只有当 `stopReason` 不是这三种（也就是正常的 `end_turn` 或 `tool_use`）时，才轮到看工具调用：
@@ -293,7 +293,7 @@ type TurnUpdate struct {
 }
 ```
 
-这几个字段合起来意味着：pigo 的循环允许**在两轮之间热切换模型或思考等级**——比如前一轮用小模型试探、发现任务变难了，下一轮换大模型。这是很多 Agent 框架做不到的动态性，而它在 pigo 里只是 `afterTurn` 里一个可选钩子的自然结果。
+这几个字段合起来意味着：aikota 的循环允许**在两轮之间热切换模型或思考等级**——比如前一轮用小模型试探、发现任务变难了，下一轮换大模型。这是很多 Agent 框架做不到的动态性，而它在 aikota 里只是 `afterTurn` 里一个可选钩子的自然结果。
 
 ## 外层循环：让收尾的 run 接着跑
 
@@ -348,7 +348,7 @@ finish := func() {
 
 ## 六个钩子与三种停止原因
 
-现在把散落在两层循环里的扩展点收拢成一张全景图。pigo 的循环之所以能被 REPL、无头、子 Agent 三种驱动器复用，靠的就是这套可选钩子——每个都是 nil 即默认、非 nil 才生效的"接缝"。
+现在把散落在两层循环里的扩展点收拢成一张全景图。aikota 的循环之所以能被 REPL、无头、子 Agent 三种驱动器复用，靠的就是这套可选钩子——每个都是 nil 即默认、非 nil 才生效的"接缝"。
 
 ### 六个钩子
 
@@ -363,7 +363,7 @@ finish := func() {
 | `BeforeToolCall` | `ToolExecutorConfig` | 工具校验后、执行前 | 拦截工具调用（权限/沙箱闸门） |
 | `AfterToolCall` | `ToolExecutorConfig` | 工具执行后 | 逐字段覆盖工具结果（不深合并） |
 
-前四个是**循环层**钩子，挂在 `RunConfig` 上，管一个 turn 收尾后的"续跑→注入→换装→停止"；后两个是**工具层**钩子，挂在 `agenttool` 的执行器上，管一个工具调用的"执行前拦截→执行后改结果"。工具层其实还有第三个 `PrepareArguments`（在执行前、校验前改写原始参数，比如注入默认值），但它不算在 pigo 循环注释所说的"六个钩子"里，是执行器自己在准备阶段留的一个扩展点。这些钩子的类型签名散在 `agentcore/helpers.go` 和 `runtime/loop.go` 里，例如：
+前四个是**循环层**钩子，挂在 `RunConfig` 上，管一个 turn 收尾后的"续跑→注入→换装→停止"；后两个是**工具层**钩子，挂在 `agenttool` 的执行器上，管一个工具调用的"执行前拦截→执行后改结果"。工具层其实还有第三个 `PrepareArguments`（在执行前、校验前改写原始参数，比如注入默认值），但它不算在 aikota 循环注释所说的"六个钩子"里，是执行器自己在准备阶段留的一个扩展点。这些钩子的类型签名散在 `agentcore/helpers.go` 和 `runtime/loop.go` 里，例如：
 
 ```go
 // 循环层：turn 收尾后决定是否停止
@@ -372,7 +372,7 @@ ShouldStopAfterTurn func(ctx context.Context, agentCtx *agentcore.AgentContext) 
 type BeforeToolCallFunc func(ctx context.Context, call AgentToolCall) *BeforeToolCallDecision
 ```
 
-有意思的是，pigo 里真正**用**这些钩子的地方，大多在测试里（`loop_test.go`、`faux_provider_test.go`），而两个生产驱动器反而克制。看 REPL 的 `streamRun`（`internal/cli/repl/repl.go`），它拼的 `RunConfig` 只挂了一个钩子：
+有意思的是，aikota 里真正**用**这些钩子的地方，大多在测试里（`loop_test.go`、`faux_provider_test.go`），而两个生产驱动器反而克制。看 REPL 的 `streamRun`（`internal/cli/repl/repl.go`），它拼的 `RunConfig` 只挂了一个钩子：
 
 ```go
 Batch: agenttool.BatchConfig{
@@ -429,12 +429,12 @@ const (
 
 **目标**：亲眼看到一次 run 从 `agent_start` 到 `agent_end` 的事件骨架，并验证"请求失败被折叠成一条 `stopReason=error` 的 assistant 消息、而非中断控制流"这一设计。
 
-**前置**：在仓库根目录下能 `go run ./cmd/pigo`（或已 `go build -o pigo ./cmd/pigo`）。本实验**故意不配置任何真实 API Key**——因为我们想看的正是"请求失败时循环怎么收尾"。
+**前置**：在仓库根目录下能 `go run ./cmd/aikota`（或已 `go build -o aikota ./cmd/aikota`）。本实验**故意不配置任何真实 API Key**——因为我们想看的正是"请求失败时循环怎么收尾"。
 
 **步骤**：以 stream-json 模式跑一个提示词，禁用工具以让事件骨架最干净，并把每行事件的 `type` 抽出来。
 
 ```bash
-go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null \
+go run ./cmd/aikota -p "你好" --output-format stream-json --no-tools 2>/dev/null \
   | grep -o '"type":"[^"]*"'
 ```
 
@@ -454,7 +454,7 @@ go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null
 3. 把 `turn_end` 那一行完整打出来看看它的 `stopReason`：
 
    ```bash
-   go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null \
+   go run ./cmd/aikota -p "你好" --output-format stream-json --no-tools 2>/dev/null \
      | grep '"type":"turn_end"'
    ```
 
@@ -464,7 +464,7 @@ go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null
 
 ## 本章小结
 
-本章把 pigo 的两层 Agent 循环从最里层拆到最外层：
+本章把 aikota 的两层 Agent 循环从最里层拆到最外层：
 
 - **一次流式回复**（`stream_response.go` 的 `streamAssistantResponse`）：七步流水线把上下文塑形成请求、动态解析密钥、驱动流、边流边**回填**半成品，最后交出一条完整 assistant 消息。核心约定是"把请求失败折叠成一条 `stopReason=error` 的终态消息"，而非返回 Go error。
 - **内层循环**（`loop.go` 的 `runLoop` 内层 `for`）：流式回复 → 执行工具 → 回填结果 → 再来一轮，以"一轮不点名任何工具"为**自然收尾条件**。工具批次通过 `ExecuteToolCalls` 执行，"全终止才终止"。

@@ -7,7 +7,7 @@
 
 ### 1.1 What This SPEC Covers
 
-本 SPEC 描述在 pigo 中新增两项能力的技术实现：(1) 基于纯 Go SQLite + FTS5 的**持久记忆系统**（磁盘 Markdown 记忆文件 + 全文索引 + BM25 检索 + 会话注入），(2) **无限上下文**（复用现有 `internal/compaction` 的 `Compact()`/`RebuildContext()` 并将检查点摘要持久化为可检索的 `checkpoint.md`，叠加检索召回，并支持跨会话上下文继承）。实现范围覆盖新包 `internal/memory`、`internal/agenttool` 记忆工具、`internal/runtime` 的检查点/重建/注入集成、`internal/session` 的继承水位、config 的嵌套 TOML 表、以及 TUI/REPL 的 `/rebuild` `/memory` 命令。
+本 SPEC 描述在 aikota 中新增两项能力的技术实现：(1) 基于纯 Go SQLite + FTS5 的**持久记忆系统**（磁盘 Markdown 记忆文件 + 全文索引 + BM25 检索 + 会话注入），(2) **无限上下文**（复用现有 `internal/compaction` 的 `Compact()`/`RebuildContext()` 并将检查点摘要持久化为可检索的 `checkpoint.md`，叠加检索召回，并支持跨会话上下文继承）。实现范围覆盖新包 `internal/memory`、`internal/agenttool` 记忆工具、`internal/runtime` 的检查点/重建/注入集成、`internal/session` 的继承水位、config 的嵌套 TOML 表、以及 TUI/REPL 的 `/rebuild` `/memory` 命令。
 
 ### 1.2 PRD Reference
 
@@ -23,8 +23,8 @@
 | 数据库位置 | 单个全局库 `$AIKOTA_HOME/memory.db`（默认 `~/.aikota/memory.db`） | 便于跨项目 global 记忆检索；scope/scope_id 区分维度 |
 | 检查点重建 | 复用现有 `Compact()`/`RebuildContext()`，额外把摘要持久化为 `checkpoint.md` | 代码量最小，复用已验证的压缩/重建机制 |
 | 配置形态 | 嵌套 TOML 表 `[memory]` / `[checkpoint]` | 对齐 MiMo；结构清晰，便于扩展 |
-| 跨会话继承 | 纳入本期，复用会话 ParentID 树 + 新增水位字段 | pigo 会话已是 fork 树，继承成本可控 |
-| 写入触发 | agent 工具驱动（`memory_search` + 写入路径） | 对齐 pigo 现状，不引入后台写入子系统 |
+| 跨会话继承 | 纳入本期，复用会话 ParentID 树 + 新增水位字段 | aikota 会话已是 fork 树，继承成本可控 |
+| 写入触发 | agent 工具驱动（`memory_search` + 写入路径） | 对齐 aikota 现状，不引入后台写入子系统 |
 | 记忆注入 | 复用 `ReminderRegistry` per-turn 注入通道 | 注入内容不进入持久历史，受 token 预算约束 |
 | 默认开关 | 全部默认开启，`memory.enabled=false` 完全回退 | 零迁移，复用现有记忆目录约定 |
 
@@ -219,7 +219,7 @@ type Query struct {
 ---
 ## 4. API Design
 
-pigo 是 CLI/agent，无 HTTP。这里的"API"指 (a) agent 工具接口、(b) slash 命令、(c) 包间 Go 接口。
+aikota 是 CLI/agent，无 HTTP。这里的"API"指 (a) agent 工具接口、(b) slash 命令、(c) 包间 Go 接口。
 
 ### 4.1 Interfaces
 
@@ -359,7 +359,7 @@ Checkpoint: sessions/<id>/checkpoint.md (watermark msg#87, 2026-08-01T10:12Z)
 
 ### 7.1 Authentication & Authorization
 
-pigo 是本地单用户 CLI，无多租户/网络鉴权。核心安全边界是**文件系统访问范围**：
+aikota 是本地单用户 CLI，无多租户/网络鉴权。核心安全边界是**文件系统访问范围**：
 
 - 记忆写入/读取被约束到记忆根目录（`root`）与可选 `ccBase`；`assertSafeComponent` 拒绝含 `..` 段或前导 `/` 的路径组件。
 - `memory_search` 与写入工具构造的绝对路径必须以 `root`/`ccBase` 为前缀（`filepath.Clean` 后再校验前缀），否则拒绝。
@@ -514,7 +514,7 @@ pigo 是本地单用户 CLI，无多租户/网络鉴权。核心安全边界是*
 
 ### 11.3 Assumptions
 
-- pigo 现有 `Compact()`/`RebuildContext()` 的检查点坍缩语义可直接承载"无限上下文"重建，无需改核心（仅叠加持久化+召回钩子）。
+- aikota 现有 `Compact()`/`RebuildContext()` 的检查点坍缩语义可直接承载"无限上下文"重建，无需改核心（仅叠加持久化+召回钩子）。
 - 记忆磁盘布局沿用现有 `~/.claude/projects/<slug>/memory/`（MEMORY.md + 类型化文件），零迁移。
 - 会话 JSONL 头新增可选字段向后兼容，旧会话解析为零值。
 - `$AIKOTA_HOME`（默认 `~/.aikota`）为全局 DB 落盘位置，与配置目录一致。

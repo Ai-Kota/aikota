@@ -130,7 +130,7 @@ Providers            Tools ← Sandbox
 ## Functional Requirements
 
 - FR-1: 系统必须把 `internal/agent` 拆分为 `internal/agentcore`、`internal/provider`、`internal/agenttool`、`internal/runtime` 四个子 package。
-- FR-2: `internal/agentcore` 必须不 import 任何其他 pigo 子 package（叶子包）。
+- FR-2: `internal/agentcore` 必须不 import 任何其他 aikota 子 package（叶子包）。
 - FR-3: `internal/provider` 必须只 import `internal/agentcore`。
 - FR-4: `internal/agenttool` 必须只 import `internal/agentcore`。
 - FR-5: `internal/runtime` 必须可 import `agentcore`、`provider`、`agenttool`，且这三者必须不反向 import `runtime`。

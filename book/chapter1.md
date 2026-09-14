@@ -4,13 +4,13 @@
 
 引言里我们把 Agent 抽象成一个朴素的公式——**LLM + 上下文 + 工具**，再用一个循环把三者串起来。但公式落到工程上，第一个要回答的问题不是"循环怎么转"，而是"程序怎么搭起来"。一条命令行敲下去，参数怎么被解析成一次运行的意图？Provider、工具、系统提示这些零件，在什么时候、由谁装配？装配完成后，程序又是沿哪条路径把控制权交给 Agent 循环的？
 
-本章是全书的第一刀，落在结构最外层：`cmd/pigo` 这一层 CLI 装配代码。这一层薄得出人意料——`main()` 只解析参数、叠加配置文件、处理几个一次性动作，就把活儿全交给了 `dispatch()`；而真正的装配与驱动逻辑都住在 `internal/cli/*` 子包里。我们就顺着这个"短入口"往里走：先看清 pigo 的运行架构长什么样，再拆开"一次运行"如何被一层层装配，最后会发现交互式入口（全屏 TUI 或行式 REPL）和无头（headless）模式共用同一套装配、只是入口不同。这张形状图立起来，后面每一章都是在图上的某个区域深挖。
+本章是全书的第一刀，落在结构最外层：`cmd/aikota` 这一层 CLI 装配代码。这一层薄得出人意料——`main()` 只解析参数、叠加配置文件、处理几个一次性动作，就把活儿全交给了 `dispatch()`；而真正的装配与驱动逻辑都住在 `internal/cli/*` 子包里。我们就顺着这个"短入口"往里走：先看清 aikota 的运行架构长什么样，再拆开"一次运行"如何被一层层装配，最后会发现交互式入口（全屏 TUI 或行式 REPL）和无头（headless）模式共用同一套装配、只是入口不同。这张形状图立起来，后面每一章都是在图上的某个区域深挖。
 
 ## 鸟瞰运行架构
 
-在钻进源码之前，先在脑子里立起一张全景图。pigo 运行时可以拆成三条主线，它们共享同一套核心装配，各自负责不同的数据流向。
+在钻进源码之前，先在脑子里立起一张全景图。aikota 运行时可以拆成三条主线，它们共享同一套核心装配，各自负责不同的数据流向。
 
-![图1-1 pigo 高层运行架构](images/fig1-1.svg){#fig:1-1 width=100%}
+![图1-1 aikota 高层运行架构](images/fig1-1.svg){#fig:1-1 width=100%}
 
 图1-1 画出了这三条线：
 
@@ -30,7 +30,7 @@
 
 ## 入口与分派：main() 与 dispatch()
 
-pigo 的可执行入口是 `cmd/pigo/main.go` 里的 `main()`。它出人意料地短：解析参数、叠加配置文件、处理几个"一次性动作"，然后把真正的工作交给 `dispatch()`。这种"入口只负责解析与分派"的写法，是理解整个 CLI 层的钥匙。
+aikota 的可执行入口是 `cmd/aikota/main.go` 里的 `main()`。它出人意料地短：解析参数、叠加配置文件、处理几个"一次性动作"，然后把真正的工作交给 `dispatch()`。这种"入口只负责解析与分派"的写法，是理解整个 CLI 层的钥匙。
 
 ### 包管理子命令的先行剥离
 
@@ -45,11 +45,11 @@ if len(os.Args) > 1 && pkgcmd.Subcommands[os.Args[1]] {
 }
 ```
 
-`pigo install|list|uninstall|update ...` 这类子命令是位置参数式的，跟后面 flag 驱动的 Agent 模式完全不同，所以要在 flag 解析之前先"剥离"出去（`internal/cli/pkgcmd` 包的 `pkgcmd.Run`）。这里还藏着一层小分派：`pigo update` 若不带位置参数（或只带 `--check` 这类 flag），走的不是包更新而是二进制自更新（`selfupdate.Run`），判定逻辑收在一个纯函数 `updateIsSelfUpdate` 里，便于单元测试。这条设计边界值得记住：**pigo 其实是两种 CLI 风格的叠加**，包管理走 Git 风格的子命令，Agent 运行走 flag 风格。
+`aikota install|list|uninstall|update ...` 这类子命令是位置参数式的，跟后面 flag 驱动的 Agent 模式完全不同，所以要在 flag 解析之前先"剥离"出去（`internal/cli/pkgcmd` 包的 `pkgcmd.Run`）。这里还藏着一层小分派：`aikota update` 若不带位置参数（或只带 `--check` 这类 flag），走的不是包更新而是二进制自更新（`selfupdate.Run`），判定逻辑收在一个纯函数 `updateIsSelfUpdate` 里，便于单元测试。这条设计边界值得记住：**aikota 其实是两种 CLI 风格的叠加**，包管理走 Git 风格的子命令，Agent 运行走 flag 风格。
 
 ### 参数解析：pflag 与 cliOptions
 
-剥离子命令后，`main()` 用 `github.com/spf13/pflag` 声明一整组标志，全部绑定到一个 `cliOptions` 结构体（定义在 `cmd/pigo/main.go`）。几个贯穿全书的关键标志值得先记住：
+剥离子命令后，`main()` 用 `github.com/spf13/pflag` 声明一整组标志，全部绑定到一个 `cliOptions` 结构体（定义在 `cmd/aikota/main.go`）。几个贯穿全书的关键标志值得先记住：
 
 - `-p/--print`：要运行的提示词，非空即进入无头模式。
 - `-m/--model`：模型 id，默认 `openrouter/free`。
@@ -61,17 +61,17 @@ if len(os.Args) > 1 && pkgcmd.Subcommands[os.Args[1]] {
 - `--no-tui`：放弃全屏 TUI，改用行式 REPL。
 - `-C/--cwd`：先把进程工作目录切过去再解析一切（对齐 Claude Agent SDK 的 cwd 选项）。
 
-`main()` 还重写了 `flag.Usage`，在标准用法后追加一段 "Supported providers" 列表（`cli.PrintProviderHelp`，`internal/cli/providerhelp.go`），这段列表由 Provider 注册表实时生成，所以永远不会和代码漂移。解析完成后还有三步小动作：`--cwd` 立刻 `os.Chdir`（此后所有依赖工作目录的解析——工具根、信任、hooks、项目配置——都发生在目标目录里）；`applyFileConfig` 把 `~/.config/pigo/config.toml` 的值叠加进来，但命令行显式传过的 flag 仍然获胜（CLI > 文件 > 默认）；然后 `--version` 作为一个独立动作直接打印构建元信息并退出，提示词也可以用位置参数补上。最终把 `opts` 交给 `dispatch()`：
+`main()` 还重写了 `flag.Usage`，在标准用法后追加一段 "Supported providers" 列表（`cli.PrintProviderHelp`，`internal/cli/providerhelp.go`），这段列表由 Provider 注册表实时生成，所以永远不会和代码漂移。解析完成后还有三步小动作：`--cwd` 立刻 `os.Chdir`（此后所有依赖工作目录的解析——工具根、信任、hooks、项目配置——都发生在目标目录里）；`applyFileConfig` 把 `~/.config/aikota/config.toml` 的值叠加进来，但命令行显式传过的 flag 仍然获胜（CLI > 文件 > 默认）；然后 `--version` 作为一个独立动作直接打印构建元信息并退出，提示词也可以用位置参数补上。最终把 `opts` 交给 `dispatch()`：
 
 ```go
 os.Exit(dispatch(context.Background(), opts, os.Stdout, os.Stderr))
 ```
 
-注意 `main()` 只做"解析 → 叠加配置 → 分派 → 映射退出码"这几件事，不含任何业务逻辑。这让 `dispatch()` 可以脱离全局 flag 集被单独测试（见 `cmd/pigo/main_test.go`）。
+注意 `main()` 只做"解析 → 叠加配置 → 分派 → 映射退出码"这几件事，不含任何业务逻辑。这让 `dispatch()` 可以脱离全局 flag 集被单独测试（见 `cmd/aikota/main_test.go`）。
 
 ### dispatch 的五条岔路
 
-`dispatch()`（`cmd/pigo/main.go`）是"运行装配缝"（run-assembly seam）：所有运行路径都从这里出发。它按优先级依次判断，把请求引向五条岔路之一：
+`dispatch()`（`cmd/aikota/main.go`）是"运行装配缝"（run-assembly seam）：所有运行路径都从这里出发。它按优先级依次判断，把请求引向五条岔路之一：
 
 1. `--subagent-rpc`：进入完全独立的子 Agent JSON-RPC 服务模式（`headless.RunSubAgentRPC`），是进程隔离子 Agent 的子进程端，与交互/无头路径互不相干（详见第 9 章）。
 2. `--dream`：进入一次性的记忆整理模式（`runDream`），在子进程里跑完记忆合并/修剪后输出一行 Report JSON 并退出，与交互/无头路径同样互不相干（它是独立动作，不属于任何一条运行路径）。
@@ -102,7 +102,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
     if opts.prompt == "" {
         isTTY := ui.StdoutIsTerminal()
         if resumeID == "" && !isTTY {
-            fmt.Fprintln(errOut, "pigo: no prompt (use -p \"...\" or positional args)")
+            fmt.Fprintln(errOut, "aikota: no prompt (use -p \"...\" or positional args)")
             return 2
         }
         env, err := run.SetupEnv(opts.model, opts.baseURL, /* ... */)
@@ -126,7 +126,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 
 ## 装配一次运行：run.SetupEnv 与 run.NewConfig
 
-在重构之前，REPL 分支和无头分支各自把 Provider、工具集、系统提示、`RunConfig` 装配了一遍——同样的装配写了两次，`RunConfig` 字面量还在 `cmd/pigo` 的 `run.go` 和 `repl.go` 之间重复。现在这套装配整体搬进了 `internal/cli/run` 包（`run.go` 顶部的包注释把这段历史讲得很清楚），收敛到两个函数：`run.SetupEnv` 组装共享环境，`run.NewConfig` 构建两条驱动路径都要用的循环配置。
+在重构之前，REPL 分支和无头分支各自把 Provider、工具集、系统提示、`RunConfig` 装配了一遍——同样的装配写了两次，`RunConfig` 字面量还在 `cmd/aikota` 的 `run.go` 和 `repl.go` 之间重复。现在这套装配整体搬进了 `internal/cli/run` 包（`run.go` 顶部的包注释把这段历史讲得很清楚），收敛到两个函数：`run.SetupEnv` 组装共享环境，`run.NewConfig` 构建两条驱动路径都要用的循环配置。
 
 ### run.SetupEnv：环境的一次性装配
 
@@ -148,7 +148,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 3. **构建工具集**：调用 `BuiltinTools`，返回根植于 cwd 的默认文件/shell 工具集（`ReadTool`/`WriteTool`/`EditTool`/`GrepTool`/`FindTool`/`BashTool`/`BashOutputTool`/`BashKillTool`/`TodoTool`/`WebFetchTool`/`WebSearchTool`），`--no-tools` 时返回 nil。工具非空时还会追加两员：`memory_search`（持久记忆检索，memory 启用时）与通用 `task` 工具（子 Agent 编排，第 9 章）。
 4. **发现插件**：非 `--no-tools` 时调用 `plugin.Discover` 追加外部插件工具；插件加载是容错的，启动失败只记录并跳过。
 5. **应用工具策略**：对组装完毕的工具集校验并套用 `--allowed-tools`/`--disallowed-tools` 边界（第 5 章）。校验必须发生在插件与记忆工具就位之后——这些名字只在运行期存在；而过滤发生在注册层、先于确认闸门，被移除的工具根本不会被广播，`--approve` 也无法放宽这条边界。
-6. **加载技能**：`LoadSkills` 从 `~/.agents/skills`（或 `$PIGO_SKILLS_DIR`）一次性加载技能集，供系统提示注入与 `/skill-name` 斜杠命令共用；个别技能文件解析失败只警告不中断。
+6. **加载技能**：`LoadSkills` 从 `~/.agents/skills`（或 `$AIKOTA_SKILLS_DIR`）一次性加载技能集，供系统提示注入与 `/skill-name` 斜杠命令共用；个别技能文件解析失败只警告不中断。
 
 关键在于它返回 `error` 而不是自己退出，把退出码映射的职责留给调用方——这是"入口只负责分派"原则的延续。
 
@@ -157,7 +157,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 
 ### Provider 解析：provider.ResolveProvider
 
-`provider.ResolveProvider`（`internal/provider/resolve.go`，在"把 cmd/pigo 收敛成薄入口"的重构中从 CLI 层迁到了 Provider 层）把"用户想用哪个模型"翻译成"用哪个 Provider 驱动、说哪套协议"。它的优先级链值得记住：
+`provider.ResolveProvider`（`internal/provider/resolve.go`，在"把 cmd/aikota 收敛成薄入口"的重构中从 CLI 层迁到了 Provider 层）把"用户想用哪个模型"翻译成"用哪个 Provider 驱动、说哪套协议"。它的优先级链值得记住：
 
 1. 显式 `--provider` 名字最高优先，走 `ResolveNamedProvider` 从内置注册表构造驱动（并对 Azure/Bedrock/Vertex/Cloudflare 这类特殊鉴权 Provider 走 `ResolveSpecialProvider`）。
 2. 显式 `--protocol`（`openai`/`anthropic`，含 `openai/resp_api`）次之，直接对 base URL 构造对应协议驱动（`openai` 因无公共默认端点而要求 `--base-url`）。
@@ -280,7 +280,7 @@ func streamRun(ctx context.Context, out io.Writer, deps replDeps, prompt string)
 
 ### 无头模式：-p 与 stream-json
 
-当 `dispatch` 拿到非空提示词时，走无头路径（`cmd/pigo/main.go` 的 `dispatch` 末段解析输出模式与装配环境，然后把活交给 `headless.Run`，`internal/cli/headless/headless.go`）：
+当 `dispatch` 拿到非空提示词时，走无头路径（`cmd/aikota/main.go` 的 `dispatch` 末段解析输出模式与装配环境，然后把活交给 `headless.Run`，`internal/cli/headless/headless.go`）：
 
 1. **确定输出模式**：`headless.ParseOutputMode` 把 `--output-format` 映射成 `runtime.PrintMode` 或 `runtime.StreamJSONMode`，未知值报错退出（码 2）。
 2. **装配环境**：`run.SetupEnv`（`dispatch` 里）+ `ui.BuildUserContent`（`headless.Run` 里，把提示词构造成用户消息内容，支持图片引用等）。
@@ -350,14 +350,14 @@ func eventEnvelope(ev agentcore.AgentEvent) map[string]any {
 
 ### 实验 1-1 ★：在 stream-json 首个事件里捕获 session_id {.unnumbered}
 
-**目标**：验证无头模式下 pigo 会把会话 id 放进 `stream-json` 的第一个 `agent_start` 事件里，并且这个事件在任何模型请求之前就已发出。
+**目标**：验证无头模式下 aikota 会把会话 id 放进 `stream-json` 的第一个 `agent_start` 事件里，并且这个事件在任何模型请求之前就已发出。
 
-**前置**：在仓库根目录下能 `go run ./cmd/pigo`（或已 `go build -o pigo ./cmd/pigo`）。本实验不需要任何真实 API Key，我们只看第一行事件。
+**前置**：在仓库根目录下能 `go run ./cmd/aikota`（或已 `go build -o aikota ./cmd/aikota`）。本实验不需要任何真实 API Key，我们只看第一行事件。
 
 **步骤 1**：以 stream-json 模式跑一个提示词，并只取第一行输出。
 
 ```bash
-go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null | head -n 1
+go run ./cmd/aikota -p "你好" --output-format stream-json --no-tools 2>/dev/null | head -n 1
 ```
 
 **预期输出**（id 每次不同，形如；`eventEnvelope` 把事件序列化成 map，`json.Marshal` 会按键名字典序输出，因此 `sessionId` 排在 `type` 前面）：
@@ -368,26 +368,26 @@ go run ./cmd/pigo -p "你好" --output-format stream-json --no-tools 2>/dev/null
 
 只要看到 `type` 为 `agent_start` 且带 `sessionId`，就说明会话 id 已随第一个事件发出，即便后续因缺 Key 而报错，这一行也已经落地。
 
-**步骤 2**：把这个 id 抓出来，用 `--resume` 续跑同一个会话。注意这里让第一次运行**完整跑完**（把全部输出收进变量再提取 id），而不是用 `head` 截断。因为 `head` 读到第一行就关闭管道，会话尚未回填到磁盘时 pigo 就可能被 `SIGPIPE` 提前终止，导致后续 `--resume` 找不到会话文件。
+**步骤 2**：把这个 id 抓出来，用 `--resume` 续跑同一个会话。注意这里让第一次运行**完整跑完**（把全部输出收进变量再提取 id），而不是用 `head` 截断。因为 `head` 读到第一行就关闭管道，会话尚未回填到磁盘时 aikota 就可能被 `SIGPIPE` 提前终止，导致后续 `--resume` 找不到会话文件。
 
 ```bash
-OUT=$(go run ./cmd/pigo -p "第一轮" --output-format stream-json --no-tools 2>/dev/null)
+OUT=$(go run ./cmd/aikota -p "第一轮" --output-format stream-json --no-tools 2>/dev/null)
 SID=$(printf '%s\n' "$OUT" | grep -o '"sessionId":"[^"]*"' | head -n1 | sed -E 's/.*:"([^"]+)"/\1/')
 echo "captured session: $SID"
-go run ./cmd/pigo -p "第二轮" --resume "$SID" --output-format stream-json --no-tools 2>/dev/null \
+go run ./cmd/aikota -p "第二轮" --resume "$SID" --output-format stream-json --no-tools 2>/dev/null \
   | head -n 1
 ```
 
-**预期**：第二次运行的第一行 `agent_start` 事件里的 `sessionId` 与 `$SID` 一致，说明 `--resume` 命中了同一个会话文件（会话由 `openHeadlessSession` 在 `~/.pigo/sessions/<id>.jsonl` 落地）。
+**预期**：第二次运行的第一行 `agent_start` 事件里的 `sessionId` 与 `$SID` 一致，说明 `--resume` 命中了同一个会话文件（会话由 `openHeadlessSession` 在 `~/.aikota/sessions/<id>.jsonl` 落地）。
 
 **观察点**：对照 `internal/runtime/headless.go` 的 `eventEnvelope`（`agent_start` 分支填 `sessionId`）与 `internal/runtime/loop.go` 中 `runLoop` 开头的 `emit(agentcore.AgentStartEvent{SessionID: cfg.SessionID})`，你会看到这条完整链路：id 在装配期生成（`openHeadlessSession`，`internal/cli/headless/session.go`）→ 写进 `RunConfig.SessionID` → 循环首个事件发出。这正是 1.3 与 1.4 两节装配逻辑的一次端到端印证。
 
 ## 本章小结
 
-本章把 pigo 最外层的 CLI 装配骨架彻底拆了一遍：
+本章把 aikota 最外层的 CLI 装配骨架彻底拆了一遍：
 
-- **鸟瞰架构**：pigo 运行时由请求路径（用户 → CLI → 循环 → Provider → LLM）、工具路径（循环 → 执行器 → 信任闸门 → 本地环境）与两条支撑边（会话、压缩）构成，见图1-1。
-- **入口即分派**：`main()`（`cmd/pigo/main.go`）只解析参数、剥离包管理子命令、叠加 config.toml、处理 `--version`，然后把工作交给 `dispatch()`（同文件）。`dispatch` 是运行装配缝，按优先级引向子 Agent、dream、列会话、交互、无头五条岔路；真正的装配与驱动逻辑住在 `internal/cli/*` 子包里。
+- **鸟瞰架构**：aikota 运行时由请求路径（用户 → CLI → 循环 → Provider → LLM）、工具路径（循环 → 执行器 → 信任闸门 → 本地环境）与两条支撑边（会话、压缩）构成，见图1-1。
+- **入口即分派**：`main()`（`cmd/aikota/main.go`）只解析参数、剥离包管理子命令、叠加 config.toml、处理 `--version`，然后把工作交给 `dispatch()`（同文件）。`dispatch` 是运行装配缝，按优先级引向子 Agent、dream、列会话、交互、无头五条岔路；真正的装配与驱动逻辑住在 `internal/cli/*` 子包里。
 - **一次装配、两处复用**：`run.SetupEnv`（`internal/cli/run/run.go`）组装共享环境（Provider、工具、系统提示、插件、技能），`run.NewConfig` 收敛出唯一的 `runtime.RunConfig` 定义，杜绝 REPL 与无头两条路径的配置漂移。
 - **两条驱动路径**：交互式界面（`repl.Run` → `runREPL` → `streamRun`，默认全屏 TUI、`--no-tui` 时行式 REPL）是人在终端的多轮对话，额外挂了信任确认钩子；无头模式（`-p` + `--output-format`）经 `headless.Run` → `runtime.RunHeadless` 一次性跑完，支持 `text` 与 `stream-json` 两种输出。
 - **session_id 的诞生**：无头运行由 `openHeadlessSession`（`internal/cli/headless/session.go`）托底，会话 id 写进 `RunConfig.SessionID`，随循环首个 `agent_start` 事件在任何网络请求前发出，可用于 `--resume`/`--continue`。
@@ -396,8 +396,8 @@ go run ./cmd/pigo -p "第二轮" --resume "$SID" --output-format stream-json --n
 
 ## 思考题
 
-1. `main()` 为什么要在 `pflag` 解析之前就把 `pigo install|list|...` 这类包管理子命令剥离出去？如果把它们也做成 flag 会带来什么问题？
-2. `run.SetupEnv` 返回 `error` 而不是自己调用 `os.Exit`，这个设计对可测试性与退出码控制分别有什么好处？（可对照 `cmd/pigo/main_test.go` 里对 `dispatch` 的测试。）
+1. `main()` 为什么要在 `pflag` 解析之前就把 `aikota install|list|...` 这类包管理子命令剥离出去？如果把它们也做成 flag 会带来什么问题？
+2. `run.SetupEnv` 返回 `error` 而不是自己调用 `os.Exit`，这个设计对可测试性与退出码控制分别有什么好处？（可对照 `cmd/aikota/main_test.go` 里对 `dispatch` 的测试。）
 3. `run.NewConfig` 被称为"一次运行如何接线的唯一定义"，但 REPL 的 `streamRun`（`internal/cli/repl/repl.go`）却自己拼了一个 `RunConfig` 而没调用它。对照两处代码，找出 REPL 版多出来的字段（如 `BeforeToolCall`、`Compaction`、`ContextWindow`），并思考为什么这些差异只属于交互模式。
 4. 为什么 `agent_start` 事件必须在任何 Provider 网络请求之前发出？如果把它挪到第一次流式回复之后再发，实验 1-1 的第二步（用第一行捕获 `session_id`）会失败吗？
 5. 无头模式与 REPL 都用 `session.NewID` 建立会话并支持 `--resume`。对照 `internal/cli/headless/session.go` 的 `persist` 与 `internal/cli/persist.go` 的 `PersistTurn`，说说两者在"把新消息作为分支回填"这件事上是如何保持一致的。

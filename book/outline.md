@@ -1,48 +1,48 @@
 # 《Write Pi Agent in Go》全书大纲
 
-本书以 [pigo](https://github.com/smallnest/pigo)（pi 命令行 AI Agent 的 Go 重实现）源码为标本，
+本书以 [aikota](https://github.com/Ai-Kota/aikota)（pi 命令行 AI Agent 的 Go 重实现）源码为标本，
 按「从入口向内、再向外」的解剖顺序，逐层拆解一个可用于生产的命令行 AI Agent 是如何装配、运行与扩展的：
 先从 **CLI 入口** 进入，深入 **核心抽象 → 两层循环 → Provider 传输 → 工具系统**，
 再向内触及 **上下文压缩 → 会话持久化 → 项目信任**，最后向外延伸到 **子 Agent 编排 → 可扩展性生态**。
 
-全书含 **引言**、一篇贯穿全书的 **主线导读**、**10 章正文** 与 **后记**。每章都锚定 pigo 仓库中真实存在的包与关键文件，读者可对照源码逐行印证。
+全书含 **引言**、一篇贯穿全书的 **主线导读**、**10 章正文** 与 **后记**。每章都锚定 aikota 仓库中真实存在的包与关键文件，读者可对照源码逐行印证。
 
 ## 内容速览
 
 | 章号 | 主题 | 一句话核心 | 对应源码包 |
 | --- | --- | --- | --- |
-| 引言 | 为什么解剖 pigo | 从 pi 到 pigo：一只可拆解的命令行 Agent 标本 | — |
+| 引言 | 为什么解剖 aikota | 从 pi 到 aikota：一只可拆解的命令行 Agent 标本 | — |
 | 主线导读 | 一条命令的生命周期 | 追一条命令从回车到结果，看清十个包如何一站站接力（不编号，横贯全书） | 全包综述 |
-| 第 1 章 | CLI 装配与运行架构 | 命令行入口如何解析参数、装配 Provider/工具并选择运行模式 | `cmd/pigo`、`internal/runtime`（config/headless） |
+| 第 1 章 | CLI 装配与运行架构 | 命令行入口如何解析参数、装配 Provider/工具并选择运行模式 | `cmd/aikota`、`internal/runtime`（config/headless） |
 | 第 2 章 | agentcore 抽象 | 消息、内容、事件、工具、钩子等贯穿全局的核心类型契约 | `internal/agentcore` |
 | 第 3 章 | 两层 Agent 循环 | 内层「流式回复→执行工具→回填」与外层「后续消息」如何驱动一次 run | `internal/runtime`（loop/stream_response/prompt） |
 | 第 4 章 | Provider 层与传输 | 统一 Provider 接口之下的 OpenAI/Anthropic 协议、SSE 传输与鉴权 | `internal/provider` |
 | 第 5 章 | 工具系统 | 内置工具的注册、批量执行与读写/搜索/网络等能力实现 | `internal/agenttool` |
 | 第 6 章 | 上下文压缩 | 逼近 token 上限时如何选切点、做摘要并压缩上下文 | `internal/compaction`、`internal/runtime`（compaction） |
 | 第 7 章 | 会话持久化 | 会话的存取、导出与 HTML 回放 | `internal/session` |
-| 第 8 章 | 项目信任与安全 | 首次进入目录的信任决策与受信状态管理 | `internal/trust`、`cmd/pigo`（trust） |
-| 第 9 章 | 子 Agent 编排 | 进程隔离的子 Agent 与基于 JSON-RPC 的父子通信 | `internal/runtime`（subagent）、`internal/jsonrpc`、`cmd/pigo`（subagent_rpc） |
-| 第 10 章 | 可扩展性生态 | Skills / 斜杠命令 / Plugins 与包管理器如何让 Agent 可插拔生长 | `internal/plugin`、`internal/pkgmgr`、`internal/runtime`（skills/slashcommand）、`cmd/pigo`（pkgcmd） |
+| 第 8 章 | 项目信任与安全 | 首次进入目录的信任决策与受信状态管理 | `internal/trust`、`cmd/aikota`（trust） |
+| 第 9 章 | 子 Agent 编排 | 进程隔离的子 Agent 与基于 JSON-RPC 的父子通信 | `internal/runtime`（subagent）、`internal/jsonrpc`、`cmd/aikota`（subagent_rpc） |
+| 第 10 章 | 可扩展性生态 | Skills / 斜杠命令 / Plugins 与包管理器如何让 Agent 可插拔生长 | `internal/plugin`、`internal/pkgmgr`、`internal/runtime`（skills/slashcommand）、`cmd/aikota`（pkgcmd） |
 | 后记 | 解牛之后 | 从阅读源码到重造轮子：设计取舍与延伸方向 | — |
 
 ## 各章详解
 
-### 引言：为什么解剖 pigo
+### 引言：为什么解剖 aikota
 
-- pi 与 pigo 的关系：命令行 AI Agent 的问题域与 Go 重实现的动机。
+- pi 与 aikota 的关系：命令行 AI Agent 的问题域与 Go 重实现的动机。
 - 本书的解剖路线「从入口向内、再向外」与阅读方法（对照源码、动手实验）。
-- 环境与仓库速览：`cmd/pigo`（入口）与 `internal/*`（核心）的整体地图。
+- 环境与仓库速览：`cmd/aikota`（入口）与 `internal/*`（核心）的整体地图。
 
 ### 主线导读：一条命令的生命周期（不编号）
 
 - 定位：夹在引言与第 1 章之间的一篇导读，不参与章节编号，是一条把后面十章串起来的红线。
-- 追一条真实命令 `pigo "读一下 main.go…"`，从敲下回车到打出结果，拆成 12 个交接点。
+- 追一条真实命令 `aikota "读一下 main.go…"`，从敲下回车到打出结果，拆成 12 个交接点。
 - 每个交接点标出「哪个包在动、做了什么、把接力棒交给谁」，并标注对应章号，读者随时能在全书地图上定位自己。
 - 对应文件：`book/reading-guide.md`。
 
 ### 第 1 章 CLI 装配与运行架构
 
-- 关键文件：`cmd/pigo/main.go`、`internal/cli/run/run.go`、`internal/cli/repl/repl.go`、`internal/cli/repl/interactive.go`、
+- 关键文件：`cmd/aikota/main.go`、`internal/cli/run/run.go`、`internal/cli/repl/repl.go`、`internal/cli/repl/interactive.go`、
   `internal/cli/headless/headless.go`、`internal/cli/headless/session.go`、`internal/runtime/headless.go`。
 - 参数解析（pflag）、`--model`/Provider 解析、API Key 环境变量注入。
 - 运行模式：headless print 模式、`stream-json` 事件模式、交互式 TUI/REPL。
@@ -104,7 +104,7 @@
 
 - 关键文件：`internal/runtime/subagent.go`、`internal/cli/headless/subagent_rpc.go`、
   `internal/jsonrpc/message.go`、`internal/jsonrpc/transport.go`。
-- 进程隔离的子 Agent：`pigo --subagent-rpc` 子进程侧。
+- 进程隔离的子 Agent：`aikota --subagent-rpc` 子进程侧。
 - 基于 JSON-RPC 2.0 over stdio 的父子通信：`subagent/run` 请求与结果回传。
 - 父侧 SubAgentTool 如何驱动子进程并汇聚事件。
 
@@ -120,5 +120,5 @@
 
 ### 后记：解牛之后
 
-- 从阅读到重造：pigo 相对 pi 的设计取舍与工程权衡。
+- 从阅读到重造：aikota 相对 pi 的设计取舍与工程权衡。
 - 可延伸的方向与练习：读者如何在此标本上继续生长自己的 Agent。

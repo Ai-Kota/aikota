@@ -2,9 +2,9 @@
 
 ## Introduction
 
-pigo 是 pi 的 Go 复刻。当前 pigo 只内置了 5 个可用 provider（OpenRouter 默认、Ollama、NVIDIA、Anthropic、Bedrock 构造器但未接线），API key 解析也只覆盖 9 个环境变量。而 pi 支持约 30 个 provider，每个都有约定的环境变量名、默认 `base_url` 与所属协议（OpenAI 兼容 / Anthropic Messages）。
+aikota 是 pi 的 Go 复刻。当前 aikota 只内置了 5 个可用 provider（OpenRouter 默认、Ollama、NVIDIA、Anthropic、Bedrock 构造器但未接线），API key 解析也只覆盖 9 个环境变量。而 pi 支持约 30 个 provider，每个都有约定的环境变量名、默认 `base_url` 与所属协议（OpenAI 兼容 / Anthropic Messages）。
 
-本特性让 pigo 全量对齐 pi 的 provider 生态：用户设置对应的环境变量（如 `DEEPSEEK_API_KEY`），用 `--provider deepseek` 选中该 provider，pigo 就能用内置的默认 `base_url`、协议、精选模型目录直接发起对话，无需手动指定 `--base-url`。同时提供通用的 `<PROVIDER>_BASE_URL` 环境变量约定用于覆盖默认端点。
+本特性让 aikota 全量对齐 pi 的 provider 生态：用户设置对应的环境变量（如 `DEEPSEEK_API_KEY`），用 `--provider deepseek` 选中该 provider，aikota 就能用内置的默认 `base_url`、协议、精选模型目录直接发起对话，无需手动指定 `--base-url`。同时提供通用的 `<PROVIDER>_BASE_URL` 环境变量约定用于覆盖默认端点。
 
 **读者假设：** 实现者应先阅读 `internal/provider/providers.go`（provider 构造器与两种 wire driver）、`internal/provider/auth.go`（`providerEnvVars` 与 key 解析）、`internal/provider/presets.go`（`PresetProviders` / `PresetCatalog`）、`cmd/aikota/main.go`（`resolveProvider` 与 CLI flag）。
 
@@ -38,7 +38,7 @@ pigo 是 pi 的 Go 复刻。当前 pigo 只内置了 5 个可用 provider（Open
 - [ ] Typecheck/`go vet` 通过。
 
 ### US-003: `--provider` 显式标志
-**Description:** 作为用户，我想用 `--provider <name>` 直接选中某个内置 provider，让 pigo 使用其默认 base_url、协议与 env key。
+**Description:** 作为用户，我想用 `--provider <name>` 直接选中某个内置 provider，让 aikota 使用其默认 base_url、协议与 env key。
 
 **Acceptance Criteria:**
 - [ ] `cmd/aikota/main.go` 新增 `--provider`（简写待定）flag。
@@ -193,6 +193,6 @@ pigo 是 pi 的 Go 复刻。当前 pigo 只内置了 5 个可用 provider（Open
 ## Open Questions
 
 - `--provider` 的简写字母选哪个（`-P`？）以避免与现有 flag 冲突？
-- google（Gemini generativelanguage）走 OpenAI 兼容端点还是需要专门适配？pi 中为独立 wire，pigo 是否本期以 OpenAI 兼容近似，还是标为 Non-Goal？
+- google（Gemini generativelanguage）走 OpenAI 兼容端点还是需要专门适配？pi 中为独立 wire，aikota 是否本期以 OpenAI 兼容近似，还是标为 Non-Goal？
 - google-vertex 协议随模型而异（Claude on Vertex 走 anthropic，Gemini 走自有），本期是否只支持其中一种？
 - opencode / kimi-coding / zai 等端点的路径后缀是否需要在 driver 内补 `/chat/completions` 或 `/messages`，需在实现时按各家文档确认。

@@ -2,11 +2,11 @@
 
 ## Introduction
 
-今天 pigo 把每个 skill 只注册成了 `/skill-name` 斜杠命令（见 `cmd/aikota/interactive.go` 中 `loadSkillCommands` 只调用 `s.SlashCommand()`）。模型的系统提示里从不出现 skill 的存在，因此模型无法根据任务自主选用 skill——用户必须手动敲 `/weather` 才能触发 weather skill。
+今天 aikota 把每个 skill 只注册成了 `/skill-name` 斜杠命令（见 `cmd/aikota/interactive.go` 中 `loadSkillCommands` 只调用 `s.SlashCommand()`）。模型的系统提示里从不出现 skill 的存在，因此模型无法根据任务自主选用 skill——用户必须手动敲 `/weather` 才能触发 weather skill。
 
 pi agent 已经解决了这个问题：它把每个 skill 的 `name / description / location`（SKILL.md 的绝对路径）注入系统提示的 `<available_skills>` 块，并告诉模型"当任务匹配某个 skill 的描述时，用 read 工具加载它的文件并按其指示执行"。这是一种**渐进式披露（progressive disclosure）**——只在提示里放元数据，正文由模型按需读取，上下文开销最小。
 
-本 PRD 的目标是让 pigo 对齐 pi 的这套机制：模型能自动发现并调用 skill，同时保留现有的 `/skill-name` 显式调用能力。
+本 PRD 的目标是让 aikota 对齐 pi 的这套机制：模型能自动发现并调用 skill，同时保留现有的 `/skill-name` 显式调用能力。
 
 参考实现（pi，位于 `/Users/chaoyuepan/ai/pi`）：
 - `packages/coding-agent/src/core/skills.ts` — `formatSkillsForPrompt`、`loadSkills`、frontmatter 校验、`disable-model-invocation`
@@ -41,7 +41,7 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 **Acceptance Criteria:**
 - [ ] name 校验：仅允许小写 `a-z`、`0-9`、连字符；长度 ≤ 64；不以连字符开头/结尾；不含连续 `--`
 - [ ] description 必填且长度 ≤ 1024
-- [ ] 校验失败按 pigo 现有"部分解析失败不致命"策略处理：跳过该 skill 并把原因累加进返回的 error（与当前 `LoadSkillsDir` 行为一致），不影响其它 skill 加载
+- [ ] 校验失败按 aikota 现有"部分解析失败不致命"策略处理：跳过该 skill 并把原因累加进返回的 error（与当前 `LoadSkillsDir` 行为一致），不影响其它 skill 加载
 - [ ] name 缺省时回退为父目录名或文件基名（保持现有回退逻辑）
 - [ ] 新增单测覆盖每条校验规则的通过与失败用例
 - [ ] Typecheck/lint 通过
@@ -70,7 +70,7 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 - [ ] Typecheck/lint 通过
 
 ### US-005: 在 run/repl 装配路径打通 skills 到提示
-**Description:** 作为用户，我在实际运行 pigo 时，加载到的 skills 能真正出现在系统提示里并被模型调用。
+**Description:** 作为用户，我在实际运行 aikota 时，加载到的 skills 能真正出现在系统提示里并被模型调用。
 
 **Acceptance Criteria:**
 - [ ] `cmd/aikota/run.go` 的 `setupAgentEnv` 在构建工具集后，把已加载的 skills 与 read 工具可用性传入 `BuildSystemPrompt`（注意当前 `BuildSystemPrompt` 调用早于 `builtinTools`，需调整装配顺序或先探测工具集）
@@ -113,7 +113,7 @@ pi agent 已经解决了这个问题：它把每个 skill 的 `name / descriptio
 
 ## Non-Goals
 
-- 不引入 pigo 已有但未使用的 `SkillTool` / `SubAgentTool` 作为自动调用路径（本次采用 pi 的渐进式披露，不启用子 agent 工具方案）。
+- 不引入 aikota 已有但未使用的 `SkillTool` / `SubAgentTool` 作为自动调用路径（本次采用 pi 的渐进式披露，不启用子 agent 工具方案）。
 - 不改变 skill body 的执行语义（body 仍作为斜杠命令展开或由模型读取后遵循，不做二次编排）。
 - 不实现项目级 `.pi/skills` 与用户级目录的多源合并/冲突检测（pi 有，但超出本次范围，可后续迭代）。
 - 不实现 `.gitignore` 式忽略规则（pi 的 ignore matcher 不在本次范围）。

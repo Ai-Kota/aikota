@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pigo Agent Loop 流程图</title>
+  <title>aikota Agent Loop 流程图</title>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -55,7 +55,7 @@
   <div class="container">
     <div class="header">
       <p class="eyebrow">Agent Loop Flowchart</p>
-      <h1>pigo Agent 两层循环</h1>
+      <h1>aikota Agent 两层循环</h1>
       <p class="subtitle">internal/runtime/loop.go · 外层后续消息驱动 · 内层 turn 直到无工具调用 · 唯一出口 finish()</p>
       <p class="diagram-desc"><b>流程图 (Flowchart)</b> — 行为性图形。聚焦 Agent 主循环的两层嵌套结构：内层跑 turn（流式回复→停止原因分派→执行工具→回填），外层在内层收敛后消费后续消息。</p>
     </div>
@@ -259,7 +259,7 @@
       </div>
     </div>
     <div class="footer">
-      pigo · github.com/smallnest/pigo · internal/runtime/loop.go
+      aikota · github.com/Ai-Kota/aikota · internal/runtime/loop.go
     </div>
   </div>
 </body>

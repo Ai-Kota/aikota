@@ -4,11 +4,11 @@
 
 第5章结尾留了个尾巴：工具让 Agent 长出了手脚，可一轮轮读文件、跑命令、抓网页，消息只增不减，上下文迟早会撞上模型的 token 上限。撞上之后会怎样？轻则请求被 Provider 拒绝（`length` 停止原因），重则更早的关键信息被挤出窗口，模型"忘了"最初要干什么。第 1 章的架构图里，"会话与压缩"被画成两条支撑边——它们不在请求的关键路径上，却决定了 Agent 能不能"记得住、跑得久"。这一章就来拆其中的压缩边。
 
-pigo 把这件事收进了 `internal/compaction` 包，四个文件各管一段：`tokens.go` 算账（估 token、判断是否该压），`cutpoint.go` 选切点（在哪一条消息上下刀），`summary.go` 做摘要（把待压缩的历史交给模型总结成一段结构化文本），`compact.go` 把前三者拧成一次完整压缩。最后由 `internal/runtime/loop.go` 把整套机制挂进 Agent 循环，在每一轮对话收尾时顺手检查、按需触发。这套实现对齐 pi 的 `harness/compaction`，只是把 pi 基于 entry id 的做法改写成了 pigo 扁平消息列表上的索引操作。我们就按 算账 → 选切点 → 做摘要 → 组装 → 嵌入循环 的顺序解剖它。
+aikota 把这件事收进了 `internal/compaction` 包，四个文件各管一段：`tokens.go` 算账（估 token、判断是否该压），`cutpoint.go` 选切点（在哪一条消息上下刀），`summary.go` 做摘要（把待压缩的历史交给模型总结成一段结构化文本），`compact.go` 把前三者拧成一次完整压缩。最后由 `internal/runtime/loop.go` 把整套机制挂进 Agent 循环，在每一轮对话收尾时顺手检查、按需触发。这套实现对齐 pi 的 `harness/compaction`，只是把 pi 基于 entry id 的做法改写成了 aikota 扁平消息列表上的索引操作。我们就按 算账 → 选切点 → 做摘要 → 组装 → 嵌入循环 的顺序解剖它。
 
 ## 算账：把上下文换算成 token 预算
 
-压缩的第一个问题是"什么时候该压"。要回答它，先得知道当前上下文占了多少 token。pigo 不依赖精确的分词器，而是用一个字符启发式估算——这既避开了为每个模型配一套 tokenizer 的麻烦，又足够保守。
+压缩的第一个问题是"什么时候该压"。要回答它，先得知道当前上下文占了多少 token。aikota 不依赖精确的分词器，而是用一个字符启发式估算——这既避开了为每个模型配一套 tokenizer 的麻烦，又足够保守。
 
 核心常量只有两个（`tokens.go`）：
 
@@ -254,11 +254,11 @@ func FindCutPoint(msgs []agentcore.Message, keepRecentTokens int) CutPointResult
 
 ### 结构化的提示词
 
-摘要质量的关键在提示词。pigo 直接搬用了 pi 的模板，系统提示先把模型的角色钉死："你是一个上下文摘要助手，只输出结构化摘要，不要续写对话、不要回答对话里的任何问题。"这道约束很重要——否则模型看到一段对话，很容易顺着往下接，而不是跳出来做总结。
+摘要质量的关键在提示词。aikota 直接搬用了 pi 的模板，系统提示先把模型的角色钉死："你是一个上下文摘要助手，只输出结构化摘要，不要续写对话、不要回答对话里的任何问题。"这道约束很重要——否则模型看到一段对话，很容易顺着往下接，而不是跳出来做总结。
 
 首次摘要的模板 `summarizationPrompt` 规定了一个固定的六段式格式：`## Goal`（用户想达成什么）、`## Constraints & Preferences`（约束与偏好）、`## Progress`（Done / In Progress / Blocked 三态进度）、`## Key Decisions`（关键决策及理由）、`## Next Steps`（有序的下一步）、`## Critical Context`（继续工作所需的数据/引用）。模板末尾特意叮嘱：保留确切的文件路径、函数名和错误信息。这套结构的用意是让"另一个 LLM 能照着它继续工作"——摘要不是给人读的备忘，而是给模型接力的交接单。
 
-pigo 还准备了第二套模板 `updateSummarizationPrompt`，用于迭代式压缩：当已经存在一份旧摘要时，不从头再总结，而是把新消息增量并进旧摘要——把 In Progress 的项挪到 Done、更新 Next Steps、但**保留**旧摘要里的既有信息。`GenerateSummary` 根据 `previousSummary` 是否为空自动在两套模板间切换。
+aikota 还准备了第二套模板 `updateSummarizationPrompt`，用于迭代式压缩：当已经存在一份旧摘要时，不从头再总结，而是把新消息增量并进旧摘要——把 In Progress 的项挪到 Done、更新 Next Steps、但**保留**旧摘要里的既有信息。`GenerateSummary` 根据 `previousSummary` 是否为空自动在两套模板间切换。
 
 ### 把对话序列化成文本
 
@@ -439,7 +439,7 @@ func maybeAutoCompact(ctx context.Context, agentCtx *agentcore.AgentContext, cfg
 
 这段代码把前面所有部件串成了一条完整链路：先 `EstimateContextTokens` 算账，`ShouldCompact` 判定，越线才 `runCompaction` 生成结果，`RebuildContext` 原地替换 `agentCtx.Messages`，最后发一个 `CompactionEvent` 汇报 前/后 token 数与 摘要/保留 的消息条数。整个过程发生在两次模型请求之间，正在进行的对话对它毫无察觉。
 
-这里最值得琢磨的是**失败处理**。压缩要额外调一次模型来生成摘要，这次调用完全可能失败（网络抖动、摘要模型不可用、缺 Key）。pigo 的选择是：压缩失败绝不拖垮整轮对话。失败分支里，它保留原始上下文一字不动，只发一个带 `ErrorMessage` 的 `CompactionEvent`，`TokensAfter` 等于 `TokensBefore`（明示没变化），然后正常返回。`internal/runtime/compaction_test.go` 的 `TestAutoCompactionFailureIsNonFatal` 精确锁定了这个契约：即便摘要流构建失败，本轮 run 仍以 `agent_end` 正常收尾，且不会插入任何检查点。这与第 5 章工具系统"失败即反馈，而非中断"的哲学一脉相承——压缩是锦上添花的优化，不该成为新的失败点。
+这里最值得琢磨的是**失败处理**。压缩要额外调一次模型来生成摘要，这次调用完全可能失败（网络抖动、摘要模型不可用、缺 Key）。aikota 的选择是：压缩失败绝不拖垮整轮对话。失败分支里，它保留原始上下文一字不动，只发一个带 `ErrorMessage` 的 `CompactionEvent`，`TokensAfter` 等于 `TokensBefore`（明示没变化），然后正常返回。`internal/runtime/compaction_test.go` 的 `TestAutoCompactionFailureIsNonFatal` 精确锁定了这个契约：即便摘要流构建失败，本轮 run 仍以 `agent_end` 正常收尾，且不会插入任何检查点。这与第 5 章工具系统"失败即反馈，而非中断"的哲学一脉相承——压缩是锦上添花的优化，不该成为新的失败点。
 
 <!--
 生图prompt：
@@ -511,7 +511,7 @@ if len(agentCtx.Messages) == 0 || agentCtx.Messages[0].Role() != agentcore.RoleC
 
 ## 本章小结
 
-本章把 pigo 的上下文压缩从算账到落地拆了一遍：
+本章把 aikota 的上下文压缩从算账到落地拆了一遍：
 
 - **token 计数**（`tokens.go`）：用"4 字符 ≈ 1 token、图片记 4800 字符"的保守启发式估算；`EstimateContextTokens` 优先以最近一次 Provider 报告的 `Usage` 为锚点、只估其后的增量；`ShouldCompact` 判定 `contextTokens > contextWindow - ReserveTokens`，且在禁用或窗口未知（`<= 0`）时永不触发。
 - **切点选择**（`cutpoint.go`）：切点只能落在 user/assistant 消息上，绝不拆开 toolCall 与 toolResult；`FindCutPoint` 从最新消息往回累加，够 `KeepRecentTokens` 后吸附到最近的合法切点，够不到则尽量多留，无合法切点则全保留。

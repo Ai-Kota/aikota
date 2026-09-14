@@ -2,9 +2,9 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "pigo — Runtime Architecture",
+    "title": "aikota — Runtime Architecture",
     "subtitle": "CLI AI coding agent · request path, external deps, trust boundaries",
-    "output": "pigo-runtime.html",
+    "output": "aikota-runtime.html",
     "visual_preset": "classic",
     "quality_profile": "standard"
   },
@@ -14,7 +14,7 @@
     { "id": "session", "type": "database", "label": "Session Store", "sublabel": "JSONL · resume", "pos": [230, 120] },
     { "id": "compaction", "type": "cloud", "label": "Context Compaction", "sublabel": "auto-summary", "pos": [420, 120] },
 
-    { "id": "cli", "type": "backend", "label": "CLI & Run Assembly", "sublabel": "cmd/pigo", "pos": [230, 250] },
+    { "id": "cli", "type": "backend", "label": "CLI & Run Assembly", "sublabel": "cmd/aikota", "pos": [230, 250] },
     { "id": "loop", "type": "backend", "label": "Agent Loop", "sublabel": "runtime · two-layer", "pos": [420, 250] },
     { "id": "provider", "type": "backend", "label": "Provider Layer", "sublabel": "transport · SSE", "pos": [610, 250] },
 
@@ -28,7 +28,7 @@
     { "id": "localenv", "type": "external", "label": "Local FS & Shell", "sublabel": "files · commands", "pos": [430, 690] }
   ],
   "boundaries": [
-    { "kind": "region", "label": "pigo process · local, trusted", "wraps": ["session", "compaction", "cli", "loop", "provider", "subagent", "tools", "trust"] },
+    { "kind": "region", "label": "aikota process · local, trusted", "wraps": ["session", "compaction", "cli", "loop", "provider", "subagent", "tools", "trust"] },
     { "kind": "security-group", "label": "External network · untrusted", "wraps": ["llm", "web"] }
   ],
   "connections": [
@@ -52,6 +52,6 @@
     { "dot": "violet", "title": "Providers & protocols", "items": ["OpenRouter (default), Ollama, NIM", "Anthropic, any OpenAI-compatible", "OpenAI + Anthropic-Messages wire", "dual failure model · retry · SSE"] },
     { "dot": "amber", "title": "Agent loop internals", "items": ["Inner: stream → run tools → feed back", "Outer: follow-up messages", "Per-turn hooks: steer / prepare / stop", "Compaction near context limit"] },
     { "dot": "rose", "title": "Trust & safety", "items": ["bash/write/edit gated in untrusted dirs", "--approve one-shot authorization", "Sub-agents: goroutine or process isolation"] },
-    { "dot": "slate", "title": "Extensibility", "items": ["Skills: /slash commands", "Plugins: ~/.pigo/plugins", "Package mgr: pigo install npm:<pkg>", "Layered system prompt + AGENTS.md"] }
+    { "dot": "slate", "title": "Extensibility", "items": ["Skills: /slash commands", "Plugins: ~/.aikota/plugins", "Package mgr: aikota install npm:<pkg>", "Layered system prompt + AGENTS.md"] }
   ]
 }

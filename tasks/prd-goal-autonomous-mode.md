@@ -2,7 +2,7 @@
 
 ## Introduction
 
-pigo 的 REPL 目前每次只跑「一个 prompt → 助手回复（可含多轮工具调用）→ 回到提示符」的单轮闭环。用户希望像 Claude Code / [pi-goal](https://pi.dev/packages/@narumitw/pi-goal) 那样：给一个高层目标后，让 agent **自主续跑**，直到它认为目标达成（显式调用 `goal_complete`）、遇到真正的僵局（`goal_blocked`），或触发安全阀（最大轮次 / 无进展）或 token 预算上限才停下。
+aikota 的 REPL 目前每次只跑「一个 prompt → 助手回复（可含多轮工具调用）→ 回到提示符」的单轮闭环。用户希望像 Claude Code / [pi-goal](https://pi.dev/packages/@narumitw/pi-goal) 那样：给一个高层目标后，让 agent **自主续跑**，直到它认为目标达成（显式调用 `goal_complete`）、遇到真正的僵局（`goal_blocked`），或触发安全阀（最大轮次 / 无进展）或 token 预算上限才停下。
 
 技术路线（已确认）：
 - **范围** — 核心自主续跑 **+ token 预算**。不做目标队列、跨扩展 RPC、statusline。

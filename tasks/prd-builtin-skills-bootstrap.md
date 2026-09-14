@@ -2,15 +2,15 @@
 
 ## Introduction
 
-pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` 或把目录放进 `~/.agents/skills`）。新用户开箱后没有任何可用的工作流技能，需要自己去 goal.rpcx.io 逐条安装，门槛高。
+aikota 目前的 skills 全部依赖用户手动安装（`aikota install npm:...` 或把目录放进 `~/.agents/skills`）。新用户开箱后没有任何可用的工作流技能，需要自己去 goal.rpcx.io 逐条安装，门槛高。
 
-本功能在 pigo **首次运行**时自动把一批"内置 skills"落地到用户的 skills 目录（`~/.agents/skills`，可被 `AIKOTA_SKILLS_DIR` 覆盖），使 `/prd`、`/to-issues`、`/refactor` 等命令开箱即用。
+本功能在 aikota **首次运行**时自动把一批"内置 skills"落地到用户的 skills 目录（`~/.agents/skills`，可被 `AIKOTA_SKILLS_DIR` 覆盖），使 `/prd`、`/to-issues`、`/refactor` 等命令开箱即用。
 
 技术路线（已确认）：
-- **1A** — skills 内容通过 Go `embed` 打进 pigo 二进制，首次运行时复制到磁盘。完全离线、无外部依赖（不依赖 `npx`/`gh`/网络）。
+- **1A** — skills 内容通过 Go `embed` 打进 aikota 二进制，首次运行时复制到磁盘。完全离线、无外部依赖（不依赖 `npx`/`gh`/网络）。
 - **2A（去掉 humanize-it）** — 内置 goal-workflow 全套技能（**排除 `humanize-it`**），另加 `architecture-diagram`、`weather` 两个独立技能。
 - **3C** — 首次运行**静默安装、无提示、无输出**。
-- **4A** — 失败时优雅降级：记录一条 warning（或静默跳过），pigo 正常启动，下次运行再重试。
+- **4A** — 失败时优雅降级：记录一条 warning（或静默跳过），aikota 正常启动，下次运行再重试。
 - **5A** — 设计一个通用的"内置 skills 清单（manifest）"机制，本期用 goal-workflow 填充，后续可扩展。
 
 内置技能来源：
@@ -22,21 +22,21 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 - goal-workflow 附加（排除 `humanize-it`）：`insight-diagram`、`refactor`、`modern-go`、`note-it`、`code-to-spec`、`smell`、`loop-it`、`to-design`、`graph`
 - 独立技能：`architecture-diagram`、`weather`
 
-> 注：`/goal` 是 Claude Code / pigo 内置能力，不属于本清单。`weather` 运行时依赖 `curl`；`architecture-diagram` 生成 HTML+SVG，无外部依赖。
+> 注：`/goal` 是 Claude Code / aikota 内置能力，不属于本清单。`weather` 运行时依赖 `curl`；`architecture-diagram` 生成 HTML+SVG，无外部依赖。
 
 ## Goals
 
-- 新用户首次运行 pigo 后，goal-workflow 内置技能立即以 `/skill-name` 形式可用，无需任何手动步骤。
+- 新用户首次运行 aikota 后，goal-workflow 内置技能立即以 `/skill-name` 形式可用，无需任何手动步骤。
 - 安装完全离线，不依赖 `npx`、`gh` 或网络。
 - 首次运行安装过程静默（无提示、无输出），不打断用户。
-- 安装失败不阻塞 pigo 启动；下次运行自动重试。
+- 安装失败不阻塞 aikota 启动；下次运行自动重试。
 - 内置技能清单可扩展，为将来加入更多技能集预留通用机制。
 - 不覆盖用户已存在的同名技能（用户的修改优先）。
 
 ## User Stories
 
 ### US-001: 嵌入内置 skills 到二进制
-**Description:** As a pigo maintainer, I want the goal-workflow skills embedded into the binary so they ship with pigo and install offline.
+**Description:** As a aikota maintainer, I want the goal-workflow skills embedded into the binary so they ship with aikota and install offline.
 
 **Acceptance Criteria:**
 - [ ] 在 `internal/builtinskills`（新包）下用 `//go:embed` 嵌入 16 个技能目录（每个含 `SKILL.md` 及其支撑文件）：goal-workflow 13 个（排除 `humanize-it`）+ `architecture-diagram` + `weather`
@@ -46,7 +46,7 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 - [ ] `go vet ./...` / lint 通过
 
 ### US-002: 首次运行判定与状态标记
-**Description:** As a developer, I need pigo to detect "first run" reliably so bootstrap happens exactly once and can retry after failure.
+**Description:** As a developer, I need aikota to detect "first run" reliably so bootstrap happens exactly once and can retry after failure.
 
 **Acceptance Criteria:**
 - [ ] 在 `$AIKOTA_HOME`（默认 `~/.aikota`）下用一个 sentinel 文件（如 `builtin-skills.state`，记录已安装的技能集版本/清单）判定是否已 bootstrap
@@ -81,7 +81,7 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 **Acceptance Criteria:**
 - [ ] 在 REPL 启动路径（`dispatch`/`runInteractive`，`cmd/aikota/run.go`）中，加载 skill 命令**之前**调用 bootstrap
 - [ ] 正常路径：无任何 stdout 提示、无交互（3C）
-- [ ] 失败路径（如 skills 目录不可写）：pigo 继续正常启动进入 REPL；错误仅在 `AIKOTA_DEBUG`/verbose 下打印，正常模式静默（4A）
+- [ ] 失败路径（如 skills 目录不可写）：aikota 继续正常启动进入 REPL；错误仅在 `AIKOTA_DEBUG`/verbose 下打印，正常模式静默（4A）
 - [ ] bootstrap 只在交互式 REPL 首次运行触发；headless（`-p`）模式行为按 Non-Goals 处理
 - [ ] 单测：模拟首次运行后 REPL 的 slash registry 中包含内置技能命令
 - [ ] 单测：模拟 bootstrap 失败（skills 目录设为不可写/非法路径）时 `dispatch` 不返回错误、不 panic
@@ -96,7 +96,7 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 - FR-6: 当 `SkillsDir()/<name>/` 已存在时，系统必须跳过该技能而不覆盖。
 - FR-7: 单个技能复制失败时，系统必须继续安装其余技能。
 - FR-8: 系统必须在 REPL 启动、加载 skill 命令之前静默触发 bootstrap，无提示、无输出。
-- FR-9: bootstrap 失败时，系统必须让 pigo 正常启动，仅在 debug/verbose 下输出错误。
+- FR-9: bootstrap 失败时，系统必须让 aikota 正常启动，仅在 debug/verbose 下输出错误。
 - FR-10: 当 `Home()` 或 `SkillsDir()` 不可解析时，系统必须跳过 bootstrap 且不报错。
 - FR-11: 新增技能集必须只需追加 manifest 条目 + 嵌入文件，无需改动首次运行判定或安装核心逻辑。
 
@@ -104,7 +104,7 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 
 - 不通过 `npx skills add` / `gh` / 网络安装（本期纯离线 embed）。
 - 不在 headless（`-p`）模式下弹出任何交互；如需在 headless 首次运行也 bootstrap，可静默执行但不打印，本期默认仅在交互式 REPL 触发。
-- 不接管或改动现有 `pigo install/uninstall/update` 的 npm 安装路径。
+- 不接管或改动现有 `aikota install/uninstall/update` 的 npm 安装路径。
 - 不提供内置技能的自动升级/覆盖用户已修改技能（只在版本落后且用户未修改时补装缺失项，覆盖策略见 FR-6：已存在即跳过）。
 - 不内置 `humanize-it`（用户明确排除）。
 - 不提供 UI/配置项让用户勾选安装哪些内置技能（5A 只要求机制可扩展，不含用户可配置界面）。
@@ -123,7 +123,7 @@ pigo 目前的 skills 全部依赖用户手动安装（`pigo install npm:...` �
 
 ## Success Metrics
 
-- 全新环境（空 `~/.aikota` 与空 `~/.agents/skills`）首次运行 pigo 后，`/prd`、`/refactor`、`/architecture-diagram`、`/weather` 等 16 个命令可直接调用。
+- 全新环境（空 `~/.aikota` 与空 `~/.agents/skills`）首次运行 aikota 后，`/prd`、`/refactor`、`/architecture-diagram`、`/weather` 等 16 个命令可直接调用。
 - 首次运行到 REPL 就绪无额外可见输出、无交互阻塞。
 - 断网环境下首次运行安装成功率 100%（纯离线）。
 - 二次运行不重复安装（sentinel 生效），启动无额外耗时。

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.11.0">
-  <title>pigo — Runtime Architecture Diagram</title>
+  <title>aikota — Runtime Architecture Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -3766,7 +3766,7 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>pigo — Runtime Architecture</h1>
+        <h1>aikota — Runtime Architecture</h1>
       </div>
       <p class="subtitle">CLI AI coding agent · request path, external deps, trust boundaries</p>
     </div>
@@ -3814,7 +3814,7 @@
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="map">
       <svg viewBox="0 0 1060 818" role="img" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="standard">
-        <title id="archify-diagram-title">pigo — Runtime Architecture</title>
+        <title id="archify-diagram-title">aikota — Runtime Architecture</title>
         <desc id="archify-diagram-description">CLI AI coding agent · request path, external deps, trust boundaries</desc>
         <!-- Definitions -->
         <defs>
@@ -3840,7 +3840,7 @@
 
         <!-- Boundaries (behind everything) -->
         <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" x="200" y="90" width="560" height="530" rx="12" class="c-region" stroke-width="1"/>
-        <text x="208" y="108" class="t-cloud" font-size="9" font-weight="600">pigo process · local, trusted</text>
+        <text x="208" y="108" class="t-cloud" font-size="9" font-weight="600">aikota process · local, trusted</text>
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="security-group" data-composition-frame-id="1" x="790" y="220" width="230" height="270" rx="8" class="c-security-group" stroke-width="1"/>
         <text x="798" y="238" class="t-security" font-size="9" font-weight="600">External network · untrusted</text>
@@ -3871,8 +3871,8 @@
         <text data-detail="context" x="100" y="294" class="t-muted" font-size="9" text-anchor="middle">REPL · -p headless</text>
         </g>
 
-        <g id="node-session" data-node-id="session" data-node-label="Session Store" tabindex="0" role="button" aria-label="Focus Session Store, JSONL · resume, pigo process · local, trusted" aria-pressed="false" data-node-kind="database" data-node-sublabel="JSONL · resume" data-node-context="pigo process · local, trusted">
-          <title>Session Store · JSONL · resume · pigo process · local, trusted</title>
+        <g id="node-session" data-node-id="session" data-node-label="Session Store" tabindex="0" role="button" aria-label="Focus Session Store, JSONL · resume, aikota process · local, trusted" aria-pressed="false" data-node-kind="database" data-node-sublabel="JSONL · resume" data-node-context="aikota process · local, trusted">
+          <title>Session Store · JSONL · resume · aikota process · local, trusted</title>
           <rect x="230" y="120" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="230" y="120" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(236 126) scale(0.6875)">
@@ -3883,8 +3883,8 @@
         <text data-detail="context" x="290" y="164" class="t-muted" font-size="9" text-anchor="middle">JSONL · resume</text>
         </g>
 
-        <g id="node-compaction" data-node-id="compaction" data-node-label="Context Compaction" tabindex="0" role="button" aria-label="Focus Context Compaction, auto-summary, pigo process · local, trusted" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="auto-summary" data-node-context="pigo process · local, trusted">
-          <title>Context Compaction · auto-summary · pigo process · local, trusted</title>
+        <g id="node-compaction" data-node-id="compaction" data-node-label="Context Compaction" tabindex="0" role="button" aria-label="Focus Context Compaction, auto-summary, aikota process · local, trusted" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="auto-summary" data-node-context="aikota process · local, trusted">
+          <title>Context Compaction · auto-summary · aikota process · local, trusted</title>
           <rect x="420" y="120" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="420" y="120" width="120" height="60" rx="6" class="c-cloud" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(426 126) scale(0.6875)">
@@ -3894,19 +3894,19 @@
         <text data-detail="context" x="480" y="164" class="t-muted" font-size="9" text-anchor="middle">auto-summary</text>
         </g>
 
-        <g id="node-cli" data-node-id="cli" data-node-label="CLI &amp; Run Assembly" tabindex="0" role="button" aria-label="Focus CLI &amp; Run Assembly, cmd/pigo, pigo process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="cmd/pigo" data-node-context="pigo process · local, trusted">
-          <title>CLI &amp; Run Assembly · cmd/pigo · pigo process · local, trusted</title>
+        <g id="node-cli" data-node-id="cli" data-node-label="CLI &amp; Run Assembly" tabindex="0" role="button" aria-label="Focus CLI &amp; Run Assembly, cmd/aikota, aikota process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="cmd/aikota" data-node-context="aikota process · local, trusted">
+          <title>CLI &amp; Run Assembly · cmd/aikota · aikota process · local, trusted</title>
           <rect x="230" y="250" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="230" y="250" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(236 256) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="290" y="278" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">CLI &amp; Run Assembly</text>
-        <text data-detail="context" x="290" y="294" class="t-muted" font-size="9" text-anchor="middle">cmd/pigo</text>
+        <text data-detail="context" x="290" y="294" class="t-muted" font-size="9" text-anchor="middle">cmd/aikota</text>
         </g>
 
-        <g id="node-loop" data-node-id="loop" data-node-label="Agent Loop" tabindex="0" role="button" aria-label="Focus Agent Loop, runtime · two-layer, pigo process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="runtime · two-layer" data-node-context="pigo process · local, trusted">
-          <title>Agent Loop · runtime · two-layer · pigo process · local, trusted</title>
+        <g id="node-loop" data-node-id="loop" data-node-label="Agent Loop" tabindex="0" role="button" aria-label="Focus Agent Loop, runtime · two-layer, aikota process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="runtime · two-layer" data-node-context="aikota process · local, trusted">
+          <title>Agent Loop · runtime · two-layer · aikota process · local, trusted</title>
           <rect x="420" y="250" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="420" y="250" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(426 256) scale(0.6875)">
@@ -3916,8 +3916,8 @@
         <text data-detail="context" x="480" y="294" class="t-muted" font-size="9" text-anchor="middle">runtime · two-layer</text>
         </g>
 
-        <g id="node-provider" data-node-id="provider" data-node-label="Provider Layer" tabindex="0" role="button" aria-label="Focus Provider Layer, transport · SSE, pigo process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="transport · SSE" data-node-context="pigo process · local, trusted">
-          <title>Provider Layer · transport · SSE · pigo process · local, trusted</title>
+        <g id="node-provider" data-node-id="provider" data-node-label="Provider Layer" tabindex="0" role="button" aria-label="Focus Provider Layer, transport · SSE, aikota process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="transport · SSE" data-node-context="aikota process · local, trusted">
+          <title>Provider Layer · transport · SSE · aikota process · local, trusted</title>
           <rect x="610" y="250" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="610" y="250" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(616 256) scale(0.6875)">
@@ -3927,8 +3927,8 @@
         <text data-detail="context" x="670" y="294" class="t-muted" font-size="9" text-anchor="middle">transport · SSE</text>
         </g>
 
-        <g id="node-subagent" data-node-id="subagent" data-node-label="Sub-agent Orchestrator" tabindex="0" role="button" aria-label="Focus Sub-agent Orchestrator, goroutine · process, pigo process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="goroutine · process" data-node-context="pigo process · local, trusted">
-          <title>Sub-agent Orchestrator · goroutine · process · pigo process · local, trusted</title>
+        <g id="node-subagent" data-node-id="subagent" data-node-label="Sub-agent Orchestrator" tabindex="0" role="button" aria-label="Focus Sub-agent Orchestrator, goroutine · process, aikota process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="goroutine · process" data-node-context="aikota process · local, trusted">
+          <title>Sub-agent Orchestrator · goroutine · process · aikota process · local, trusted</title>
           <rect x="230" y="410" width="140" height="60" rx="6" class="c-mask"/>
           <rect x="230" y="410" width="140" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(236 416) scale(0.6875)">
@@ -3938,8 +3938,8 @@
         <text data-detail="context" x="300" y="454" class="t-muted" font-size="9" text-anchor="middle">goroutine · process</text>
         </g>
 
-        <g id="node-tools" data-node-id="tools" data-node-label="Tool Executor" tabindex="0" role="button" aria-label="Focus Tool Executor, registry · read/edit/bash, pigo process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="registry · read/edit/bash" data-node-context="pigo process · local, trusted">
-          <title>Tool Executor · registry · read/edit/bash · pigo process · local, trusted</title>
+        <g id="node-tools" data-node-id="tools" data-node-label="Tool Executor" tabindex="0" role="button" aria-label="Focus Tool Executor, registry · read/edit/bash, aikota process · local, trusted" aria-pressed="false" data-node-kind="backend" data-node-sublabel="registry · read/edit/bash" data-node-context="aikota process · local, trusted">
+          <title>Tool Executor · registry · read/edit/bash · aikota process · local, trusted</title>
           <rect x="420" y="410" width="140" height="60" rx="6" class="c-mask"/>
           <rect x="420" y="410" width="140" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(426 416) scale(0.6875)">
@@ -3949,8 +3949,8 @@
         <text data-detail="context" x="490" y="454" class="t-muted" font-size="9" text-anchor="middle">registry · read/edit/bash</text>
         </g>
 
-        <g id="node-trust" data-node-id="trust" data-node-label="Trust Gate" tabindex="0" role="button" aria-label="Focus Trust Gate, per-dir permission, pigo process · local, trusted" aria-pressed="false" data-node-kind="security" data-node-sublabel="per-dir permission" data-node-context="pigo process · local, trusted">
-          <title>Trust Gate · per-dir permission · pigo process · local, trusted</title>
+        <g id="node-trust" data-node-id="trust" data-node-label="Trust Gate" tabindex="0" role="button" aria-label="Focus Trust Gate, per-dir permission, aikota process · local, trusted" aria-pressed="false" data-node-kind="security" data-node-sublabel="per-dir permission" data-node-context="aikota process · local, trusted">
+          <title>Trust Gate · per-dir permission · aikota process · local, trusted</title>
           <rect x="430" y="540" width="120" height="60" rx="6" class="c-mask"/>
           <rect x="430" y="540" width="120" height="60" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(436 546) scale(0.6875)">
@@ -4302,8 +4302,8 @@
         </div>
         <ul>
           <li>&bull; Skills: /slash commands</li>
-          <li>&bull; Plugins: ~/.pigo/plugins</li>
-          <li>&bull; Package mgr: pigo install npm:&lt;pkg&gt;</li>
+          <li>&bull; Plugins: ~/.aikota/plugins</li>
+          <li>&bull; Package mgr: aikota install npm:&lt;pkg&gt;</li>
           <li>&bull; Layered system prompt + AGENTS.md</li>
         </ul>
       </div>

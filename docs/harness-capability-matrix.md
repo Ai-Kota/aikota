@@ -23,14 +23,14 @@
 
 ## 能力矩阵总览
 
-| # | 维度 | 现状 | 已验证的现有实现（pigo 源码） | 主要缺口 | 优先级 | US / Issue |
+| # | 维度 | 现状 | 已验证的现有实现（aikota 源码） | 主要缺口 | 优先级 | US / Issue |
 |---|------|------|------------------------------|----------|--------|------------|
 | 1 | 上下文管理 | 部分 | 系统提示三层分层；`GetSteeringMessages` / `PrepareNextTurn` / `ShouldStopAfterTurn` / `GetFollowUpMessages` 钩子；阈值自动压缩 | 无通用 `system-reminder` 动态注入机制；AGENTS.md 为静态一次性注入 | **P0** | US-002 → #248 |
 | 2 | 工具结果裁剪 | **已完成**（US-003/004 落地） | `read` 行数上限；`search` 1000 条上限；`webfetch` 字节 + Markdown 上限；`bash` 输出字节上限（US-003/#249）；executor 层统一字节预算 `clipToolResultContent` + `MaxResultBytes`，对所有工具生效（US-004/#250，2026-09 刷新确认） | 无 | ~~P0~~ 已闭环 | US-003 → #249<br>US-004 → #250 |
 | 3 | 韧性与重试 | **已完成**（US-006 落地） | 传输层连接期重试（仅 429/503/529，尊重 Retry-After，绝不重放已消费流）；工具执行失败分类 + 有限重试（`isRetryableToolError` / `MaxToolRetries`，退避可被 ctx 取消，2026-09 刷新确认） | 无 | ~~P1~~ 已闭环 | US-006 → #252 |
 | 4 | Steering & 中断 | 部分 | `GetSteeringMessages` 每轮工具执行后注入 | steering 触发/来源较薄；无标准化运行时中断—引导 UX | P2 | 记录于本文（见 §Steering），并入 US-002 注入机制协同 |
 | 5 | 子 Agent 编排 | 较完整 | `SubAgentTool`、goroutine/process 两种隔离、`RunSubAgentOnce` | 基本满足，本轮不作为重点 | — | 不在本轮范围（PRD Non-Goal） |
-| 6 | 可观测性 | **已完成**（US-005 落地 + #569 契约化） | 事件流（10 种 `AgentEvent` + `CompactionEvent`）；headless stream-json 导出；plugin `OnEvent` 钩子；结构化遥测累计器（轮次/工具耗时/截断/compaction/上下文占用，`internal/runtime/telemetry.go`）；版本化导出 schema（`TelemetrySummary`，`pigo.telemetry/v1`）+ golden 一致性测试（#569） | OTel/外部后端导出仍属 Non-Goal | ~~P1~~ 已闭环 | US-005 → #251<br>#569（契约化） |
+| 6 | 可观测性 | **已完成**（US-005 落地 + #569 契约化） | 事件流（10 种 `AgentEvent` + `CompactionEvent`）；headless stream-json 导出；plugin `OnEvent` 钩子；结构化遥测累计器（轮次/工具耗时/截断/compaction/上下文占用，`internal/runtime/telemetry.go`）；版本化导出 schema（`TelemetrySummary`，`aikota.telemetry/v1`）+ golden 一致性测试（#569） | OTel/外部后端导出仍属 Non-Goal | ~~P1~~ 已闭环 | US-005 → #251<br>#569（契约化） |
 | 7 | 安全护栏 | 部分 | trust 三态（目录信任 + 副作用工具确认）；`--approve` | 与 harness 其他机制未打通；无按工具/操作粒度的统一策略入口 | P2 | 记录于本文（见 §安全护栏），协同设计留作后期 US |
 
 > 优先级判据：**P0** = 影响面最大、是长任务上下文溢出/CC 标志能力的直接诱因；**P1** = 支撑鲁棒性度量与错误恢复；**P2** = 次优先级，本文仅记录、协同设计后期展开。
@@ -131,7 +131,7 @@ steering 的触发/来源较薄；无标准化的运行时中断—引导 UX。
 
 ### 现有实现（已验证）
 
-`internal/runtime/subagent.go`：`SubAgentTool` 将 `SubAgentSpec` 适配为普通 `AgentTool`；支持 **goroutine**（默认，进程内）与 **process**（`pigo --subagent-rpc` 子进程 + stdio JSON-RPC）两种隔离；`RunSubAgentOnce` 为两者共享的执行核心；子 Agent 作为并行工具可并发运行，失败作为 tool error 回传父循环。
+`internal/runtime/subagent.go`：`SubAgentTool` 将 `SubAgentSpec` 适配为普通 `AgentTool`；支持 **goroutine**（默认，进程内）与 **process**（`aikota --subagent-rpc` 子进程 + stdio JSON-RPC）两种隔离；`RunSubAgentOnce` 为两者共享的执行核心；子 Agent 作为并行工具可并发运行，失败作为 tool error 回传父循环。
 
 ### 状态
 
@@ -162,7 +162,7 @@ steering 的触发/来源较薄；无标准化的运行时中断—引导 UX。
 ### 现有实现（已验证）
 
 - **trust 三态** —— `internal/trust/manager.go`：`Undecided` / `Trusted` / `Untrusted`，按目录持久化，控制副作用工具（bash/write/edit）是否需确认。
-- **`--approve`** —— `cmd/pigo/run.go`：为启动目录授予 session 级信任，跳过首次信任提示与逐次确认（对标 pi 的 `--approve/-a`）。
+- **`--approve`** —— `cmd/aikota/run.go`：为启动目录授予 session 级信任，跳过首次信任提示与逐次确认（对标 pi 的 `--approve/-a`）。
 
 ### 缺口
 

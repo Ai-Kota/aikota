@@ -1,12 +1,12 @@
-# Design: pi-extension host for pigo
+# Design: pi-extension host for aikota
 
 Date: 2026-07-24
 Status: Approved (design), pending implementation
 
 ## Problem
 
-`pigo` loads plugins by discovering every executable regular file in
-`$PIGO_HOME/plugins` (`internal/plugin.Discover`) and speaking line-delimited
+`aikota` loads plugins by discovering every executable regular file in
+`$AIKOTA_HOME/plugins` (`internal/plugin.Discover`) and speaking line-delimited
 JSON-RPC 2.0 to it: it spawns the executable, calls `initialize`, and expects a
 `Manifest{name, version, tools[], commands[]}` back (`internal/plugin.Load`).
 
@@ -32,17 +32,17 @@ tools/commands were never registered, yet the model attempted a call. That is a
 provider-robustness concern, tracked separately and **out of scope** here.
 
 Additionally, `plugin.Manifest.Commands` is declared in the wire protocol but
-**no pigo code consumes it** — nothing turns a plugin-declared command into a
+**no aikota code consumes it** — nothing turns a plugin-declared command into a
 slash command. So even a correctly loaded pi extension would not surface
 `/simplify` today. This design fixes both the host and the command wiring.
 
 ## Goals
 
-- Run JS pi extensions (`export default (pi) => {...}`) under pigo with faithful
+- Run JS pi extensions (`export default (pi) => {...}`) under aikota with faithful
   `pi` API behavior, reusing pi's real runtime (`@earendil-works/pi-coding-agent`).
-- Surface a pi extension's `registerTool` tools as pigo agent tools and its
-  `registerCommand` commands as pigo slash commands.
-- Preserve pigo's existing fault isolation: a broken or missing extension is
+- Surface a pi extension's `registerTool` tools as aikota agent tools and its
+  `registerCommand` commands as aikota slash commands.
+- Preserve aikota's existing fault isolation: a broken or missing extension is
   logged and skipped, never fatal.
 - Require `node` on PATH for pi extensions; native/JSON-RPC plugins are
   unaffected.
@@ -61,14 +61,14 @@ slash command. So even a correctly loaded pi extension would not surface
 
 ## Architecture
 
-Introduce a **pi-extension host**: a self-contained Node program that pigo
+Introduce a **pi-extension host**: a self-contained Node program that aikota
 ships, embedded into the Go binary via `go:embed`. The host loads a pi extension
-using pi's real runtime and re-exposes it over pigo's existing JSON-RPC plugin
+using pi's real runtime and re-exposes it over aikota's existing JSON-RPC plugin
 protocol. `internal/plugin.Load` then talks to the host exactly as it talks to
 any other plugin — no change to the plugin transport or handshake.
 
 ```
-pigo (Go)                          node pihost.mjs (ships with pigo)
+aikota (Go)                          node pihost.mjs (ships with aikota)
 ---------                          --------------------------------
 plugin.Discover ──exec launcher──▶ #!/bin/sh
                                    exec node <pihost.mjs> <pkgDir> "$@"
@@ -103,7 +103,7 @@ payload (e.g. `plugins/<name>.pkg/.pihost.mjs`). Responsibilities:
    `pi.extensions` field and loads the declared entrypoints. (`loadExtensions`
    is not a public export; `discoverAndLoadExtensions` is.)
 3. Build an `ExtensionRunner` from the load result and `bindCore` /
-   `bindCommandContext` with pigo-appropriate action implementations
+   `bindCommandContext` with aikota-appropriate action implementations
    (stubs/bridges — see "Action bridging").
 4. Collect the manifest:
    - `runner.getAllRegisteredTools()` → `tools[]` (`{name, description, schema}`),
@@ -129,14 +129,14 @@ payload (e.g. `plugins/<name>.pkg/.pihost.mjs`). Responsibilities:
      event type, best-effort.
    - `shutdown` (notification) → resolve pending work and `process.exit(0)`.
 
-The host is transport-symmetric with pigo's Go client: read lines from stdin,
+The host is transport-symmetric with aikota's Go client: read lines from stdin,
 write one JSON object + `\n` per response to stdout. Diagnostics go to stderr
-(pigo pipes plugin stderr through).
+(aikota pipes plugin stderr through).
 
 ### 2. Action bridging (host side)
 
 `ExtensionRunner.bindCore` / `bindCommandContext` require action
-implementations. Since pigo drives the agent loop (not pi), these are stubs or
+implementations. Since aikota drives the agent loop (not pi), these are stubs or
 capture buffers:
 
 - `exec(command, args, opts)` → real child-process exec in the host (pi
@@ -149,8 +149,8 @@ capture buffers:
 - `ui.select/confirm/input` → return `undefined`/`false` (no interactive UI in
   this bridge); documented limitation.
 - Read-only context (`cwd`, `isIdle`, `isProjectTrusted`, `getModel`, ...) →
-  sensible constants: `cwd` = process cwd (pigo launches the host in the
-  session cwd), `isIdle` = true, `isProjectTrusted` = true (pigo already gates
+  sensible constants: `cwd` = process cwd (aikota launches the host in the
+  session cwd), `isIdle` = true, `isProjectTrusted` = true (aikota already gates
   trust before running tools).
 - Session/model mutation (`setModel`, `newSession`, `fork`, `navigateTree`,
   `compact`, ...) → no-op stubs. A command relying on these degrades gracefully
@@ -163,7 +163,7 @@ the goal is that loading and basic tool/command use never crash the host.
 
 ### 3. SDK resolution (host side)
 
-The host must import `@earendil-works/pi-coding-agent` without assuming pigo's
+The host must import `@earendil-works/pi-coding-agent` without assuming aikota's
 plugin dir is inside a node_modules tree. Resolution order:
 
 1. `import(...)` directly (works if the package is resolvable from the host
@@ -179,7 +179,7 @@ locally installed SDK is `0.80.3`. The host targets the public API surface
 (`discoverAndLoadExtensions`, `ExtensionRunner`, `createEventBus`,
 `createExtensionRuntime`), which is stable across that range.
 
-### 4. pigo-side: distribution — `internal/pkgmgr/distribute.go`
+### 4. aikota-side: distribution — `internal/pkgmgr/distribute.go`
 
 `DistributeExtension` gains a branch on entrypoint kind:
 
@@ -199,7 +199,7 @@ The chosen shell quoting (`shellQuote`) is reused. `node` is assumed on PATH;
 if absent at run time the exec fails and the plugin is skipped (fault-isolated),
 with a readable stderr hint emitted by a small guard in the launcher.
 
-### 5. pigo-side: plugin command support — `internal/plugin`
+### 5. aikota-side: plugin command support — `internal/plugin`
 
 - `manifest.go`: add `CommandCallParams{Name, Args}` and
   `CommandCallResult{Prompt string, Notifications []CommandNotification}` where
@@ -211,7 +211,7 @@ with a readable stderr hint emitted by a small guard in the launcher.
   `[]struct{Plugin *Plugin; Spec CommandSpec}` (or a small `PluginCommand`
   type) across loaded plugins, in load order.
 
-### 6. pigo-side: slash registration — `cmd/pigo/interactive.go`
+### 6. aikota-side: slash registration — `cmd/aikota/interactive.go`
 
 After plugin discovery (both interactive and, where applicable, headless),
 register each plugin command as a `runtime.SlashCommand`:
@@ -243,7 +243,7 @@ register each plugin command as a `runtime.SlashCommand`:
    `pi.sendUserMessage(prompt, {deliverAs:"followUp"})` (captured).
 5. Host returns `{prompt:<simplify prompt>, notifications:[]}` (or a "no changed
    files" notification and empty prompt).
-6. pigo prints notifications; if a prompt is present, runs it as the next turn.
+6. aikota prints notifications; if a prompt is present, runs it as the next turn.
 
 ## Error handling
 
@@ -269,7 +269,7 @@ register each plugin command as a `runtime.SlashCommand`:
   extension `export default (pi) => pi.registerCommand("t", {handler: async(a,c)=>{ pi... }})`
   loaded through the real host + `plugin.Load`, asserting `initialize` returns
   the command and `commands/call` returns the expected prompt.
-- `cmd/pigo`: test that a discovered plugin command is registered in the slash
+- `cmd/aikota`: test that a discovered plugin command is registered in the slash
   registry and that invoking it injects the returned prompt.
 
 ## Open questions / assumptions

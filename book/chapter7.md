@@ -4,7 +4,7 @@
 
 第1章鸟瞰架构时，我们在两条主线之外画了两条"支撑边"：上下文压缩和会话存储。第 6 章拆完了压缩，这一章轮到会话。它不在请求的关键路径上——一次对话就算完全不落盘也能跑完——但少了它，Agent 就成了一个失忆的工具：关掉终端，这轮读了哪些文件、改了哪些代码、聊到哪一步，全部烟消云散。`--resume`/`--continue` 之所以能续上昨天的活儿，`/export` 之所以能把一次排障过程存成一份可分享的 HTML，靠的都是 `internal/session` 这个包。
 
-pigo 把会话持久化收敛成一件事：**一个会话就是磁盘上的一个 JSONL 文件**。第一行是元数据头，后面每一行是一条消息。听上去朴素，但这个文件要同时满足几个并不轻松的诉求——它要能被增量追加而不必每次重写、要能在多个进程并发读时永远看到完整内容、要能表达"从某条历史消息分叉出一条新支线"的树形结构、还要能向前兼容早期版本写下的旧文件。于是"把对话存下来"这件听起来一行 `os.WriteFile` 就能了事的小事，被拆成了三块硬骨头：一棵能分叉的消息树、一组并发安全的读写原语（存、取、追加、分叉），以及一份能脱离 pigo 独立打开的 HTML 回放。本章就按这个顺序啃。
+aikota 把会话持久化收敛成一件事：**一个会话就是磁盘上的一个 JSONL 文件**。第一行是元数据头，后面每一行是一条消息。听上去朴素，但这个文件要同时满足几个并不轻松的诉求——它要能被增量追加而不必每次重写、要能在多个进程并发读时永远看到完整内容、要能表达"从某条历史消息分叉出一条新支线"的树形结构、还要能向前兼容早期版本写下的旧文件。于是"把对话存下来"这件听起来一行 `os.WriteFile` 就能了事的小事，被拆成了三块硬骨头：一棵能分叉的消息树、一组并发安全的读写原语（存、取、追加、分叉），以及一份能脱离 aikota 独立打开的 HTML 回放。本章就按这个顺序啃。
 
 ## 会话是一棵树：数据模型
 
@@ -138,7 +138,7 @@ Constraints: One image explains only one core structure. Main subject 40%-60% of
 
 ## 存与取：Store 的读写原语
 
-数据模型之上是 `Store`，它把会话作为 JSONL 文件持久化到一个目录（通常是 `~/.pigo/sessions`）。它对外暴露的写原语分两档：`Save` 是整份写入，`Append`/`AppendBranch` 是增量追加。所有写入都经过同一段管道 `atomicWrite`：
+数据模型之上是 `Store`，它把会话作为 JSONL 文件持久化到一个目录（通常是 `~/.aikota/sessions`）。它对外暴露的写原语分两档：`Save` 是整份写入，`Append`/`AppendBranch` 是增量追加。所有写入都经过同一段管道 `atomicWrite`：
 
 ```go
 func (s *Store) atomicWrite(id string, write func(w io.Writer) error) error {
@@ -154,7 +154,7 @@ func (s *Store) atomicWrite(id string, write func(w io.Writer) error) error {
 }
 ```
 
-先写临时文件、再原子 `rename` 就位。这道设计防的是并发读：REPL 一边追加会话、另一个 `pigo --list-sessions` 一边扫目录，靠 `rename` 的原子性，读者要么看到旧文件、要么看到新文件，永远不会撞见一个写了一半的残缺文件。
+先写临时文件、再原子 `rename` 就位。这道设计防的是并发读：REPL 一边追加会话、另一个 `aikota --list-sessions` 一边扫目录，靠 `rename` 的原子性，读者要么看到旧文件、要么看到新文件，永远不会撞见一个写了一半的残缺文件。
 
 <!--
 生图prompt：
@@ -298,7 +298,7 @@ Constraints: One image explains only one core structure. Main subject 40%-60% of
 
 ## 导出与导入：把会话带走
 
-会话文件躺在 `~/.pigo/sessions` 里，但有时你想把它带出去——存档、分享、或搬到另一台机器。`export.go` 提供了这条通路。JSONL 导出用的就是 store 落盘的同一套 schema，所以导出再导入是**无损往返**：
+会话文件躺在 `~/.aikota/sessions` 里，但有时你想把它带出去——存档、分享、或搬到另一台机器。`export.go` 提供了这条通路。JSONL 导出用的就是 store 落盘的同一套 schema，所以导出再导入是**无损往返**：
 
 ```go
 func WriteJSONL(w io.Writer, header SessionHeader, entries []Entry) error {
@@ -365,7 +365,7 @@ func renderEntryHTML(e Entry) string {
 
 助手消息会额外把它发起的工具调用渲染成一个个 `.toolcall` 块，标出工具名与参数；工具结果带上 `ToolName` 标签；`CompactionMessage`（第 6 章那个压缩检查点）渲染成一个独立的 compaction 块。这样一份 HTML 回放，把整轮对话的"说了什么、调了什么工具、压缩过没有"都摊在一页里。
 
-真正值得停下来看的是**转义**。每一处来自会话的文本——用户输入、助手回复、工具名、工具参数、工具结果——都先过一遍 `html.EscapeString` 才写进文档。为什么这么较真？因为会话内容是不可信的：模型可能吐出一段 `</script><script>...` 的文本，用户可能粘贴过带尖括号的代码。如果不转义，这些内容就能冲出它该待的位置、甚至注入能执行的脚本。`msgBlock` 的文档注释把这条契约写得很死：调用方**必须**传入已转义的 text/label，只有 `extra` 参数是这里用已转义的碎片拼出来的可信 HTML。转义、无脚本、无外部资源，这三条一起，挡住的是"一份可能被塞了恶意标记的会话"。这和第 8 章项目信任的出发点是一样的：pigo 对流经自己的外部内容，默认不信任。
+真正值得停下来看的是**转义**。每一处来自会话的文本——用户输入、助手回复、工具名、工具参数、工具结果——都先过一遍 `html.EscapeString` 才写进文档。为什么这么较真？因为会话内容是不可信的：模型可能吐出一段 `</script><script>...` 的文本，用户可能粘贴过带尖括号的代码。如果不转义，这些内容就能冲出它该待的位置、甚至注入能执行的脚本。`msgBlock` 的文档注释把这条契约写得很死：调用方**必须**传入已转义的 text/label，只有 `extra` 参数是这里用已转义的碎片拼出来的可信 HTML。转义、无脚本、无外部资源，这三条一起，挡住的是"一份可能被塞了恶意标记的会话"。这和第 8 章项目信任的出发点是一样的：aikota 对流经自己的外部内容，默认不信任。
 
 <!--
 生图prompt：
@@ -405,7 +405,7 @@ go test ./internal/session/ -v 2>&1 | tail -n 30
 **步骤 2**：写一小段临时程序，存一个含"恶意"文本的会话，导出成 HTML，再检查产物：
 
 ```go
-store, _ := session.NewStore("/tmp/pigo-exp-7-1")
+store, _ := session.NewStore("/tmp/aikota-exp-7-1")
 now := time.Now().UTC()
 h := session.SessionHeader{ID: session.NewID(now), CreatedAt: now, UpdatedAt: now}
 msgs := agentcore.MessageList{
@@ -413,16 +413,16 @@ msgs := agentcore.MessageList{
 		agentcore.NewTextContent("<script>alert('x')</script> 你好")}},
 }
 _ = store.Save(h, msgs)
-n, _ := store.Export(h.ID, "/tmp/pigo-exp-7-1/out.html")
+n, _ := store.Export(h.ID, "/tmp/aikota-exp-7-1/out.html")
 fmt.Printf("exported %d entries\n", n)
 ```
 
 **步骤 3**：检查导出的 HTML——它不该含有可执行的 `<script>`，而那段用户文本应被转义成 `&lt;script&gt;`：
 
 ```bash
-grep -c '<script' /tmp/pigo-exp-7-1/out.html   # 期望 0：没有活动脚本标签
-grep -o '&lt;script&gt;' /tmp/pigo-exp-7-1/out.html | head -n1  # 期望命中：用户文本被转义
-grep -c 'http://\|https://' /tmp/pigo-exp-7-1/out.html  # 期望 0：无外部网络资源
+grep -c '<script' /tmp/aikota-exp-7-1/out.html   # 期望 0：没有活动脚本标签
+grep -o '&lt;script&gt;' /tmp/aikota-exp-7-1/out.html | head -n1  # 期望命中：用户文本被转义
+grep -c 'http://\|https://' /tmp/aikota-exp-7-1/out.html  # 期望 0：无外部网络资源
 ```
 
 **预期**：第一条计数为 0（文档里没有真正的 `<script>` 标签），第二条命中 `&lt;script&gt;`（那段危险文本被 `html.EscapeString` 转义成了纯文本，浏览器只会把它当字符显示、不会执行），第三条也为 0（CSS 全内联，无任何 http(s) 外链）。
@@ -431,14 +431,14 @@ grep -c 'http://\|https://' /tmp/pigo-exp-7-1/out.html  # 期望 0：无外部�
 
 ## 本章小结
 
-本章拆解了 pigo 的会话持久化——`internal/session` 这个支撑边：
+本章拆解了 aikota 的会话持久化——`internal/session` 这个支撑边：
 
 - **数据模型**：一个会话是一个 JSONL 文件，首行 `SessionHeader`（版本 + 元数据），其后每行一个 `Entry`（id/parentId + 消息）。`Entry` 的 id/parentId 把消息织成一棵树，线性会话是其退化形态；`PathToLeaf` 沿 ParentID 链重建喂给任一叶子的线性对话，并对环与断链做防御。消息的多态解码借道 `agentcore.MessageList` 的判别逻辑，不重复造轮子。
 - **读写原语**：所有写入经 `atomicWrite`（临时文件 + 原子 rename）保证并发读永不撞见半成品。`Save`/`writeSession` 从消息列表生成线性树；`SaveEntries`/`writeSessionEntries` 原样保留已有树；`AppendBranch` 把新消息作为分支挂在指定叶子下，是 REPL 与无头运行增量落盘的共同底座。`readSession` 就地迁移 v1/v2 旧文件，向前兼容。
 - **分叉与导出**：`Fork` 用 `PathToLeaf` + `SaveEntries` 把一段路径复制成独立会话，支撑 `/fork` 与 `/clone`；`RenderTreeLines` 渲染 `/tree` 视图。`WriteJSONL`/`ReadJSONL` 复用内部读写原语实现无损往返，`Export`/`Import` 按扩展名选格式。
 - **HTML 回放**：`WriteHTML` 产出一份自足文档——CSS 内联、无脚本、无网络、按角色配色；每一处会话文本都经 `html.EscapeString` 转义，正面防御一份可能含恶意标记的会话。
 
-会话让 Agent 记得住、跑得久，也和上一章的压缩形成配合：压缩过的 `CompactionMessage` 会作为一条 entry 落进会话、在 HTML 回放里显示为压缩块。下一章（第 8 章）转向另一条支撑边——项目信任：在真正执行 Bash、写文件这类有副作用的操作之前，pigo 如何决定"这个目录可不可信"，把安全闸门插在工具执行之前。
+会话让 Agent 记得住、跑得久，也和上一章的压缩形成配合：压缩过的 `CompactionMessage` 会作为一条 entry 落进会话、在 HTML 回放里显示为压缩块。下一章（第 8 章）转向另一条支撑边——项目信任：在真正执行 Bash、写文件这类有副作用的操作之前，aikota 如何决定"这个目录可不可信"，把安全闸门插在工具执行之前。
 
 ## 思考题
 
