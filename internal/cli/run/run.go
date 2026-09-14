@@ -21,6 +21,7 @@ import (
 	"github.com/Ai-Kota/aikota/internal/plugin"
 	"github.com/Ai-Kota/aikota/internal/provider"
 	"github.com/Ai-Kota/aikota/internal/runtime"
+	"github.com/Ai-Kota/aikota/internal/safetygate"
 	"github.com/Ai-Kota/aikota/internal/trust"
 )
 
@@ -605,7 +606,18 @@ func NewConfig(model, providerName string, thinking agentcore.ThinkingLevel, pro
 			GetAPIKey:     creds.GetAPIKey,
 		},
 		Batch: agenttool.BatchConfig{
-			ToolExecutorConfig: agenttool.ToolExecutorConfig{Registry: reg},
+			ToolExecutorConfig: agenttool.ToolExecutorConfig{
+				Registry: reg,
+				// The built-in safety floor sits at the base of the
+				// BeforeToolCall chain: it is evaluated before any
+				// user-configured hook and before the trust prompt, and no
+				// policy layer or --approve can widen it, because the chain
+				// combinator stops at the first block. Installing it here
+				// rather than in the CLI is deliberate — the embedded SDK
+				// builds its config through this same function, so both modes
+				// are covered.
+				BeforeToolCall: safetygate.Gate(),
+			},
 		},
 		Reminders: reminders,
 	}

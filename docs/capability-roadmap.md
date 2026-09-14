@@ -151,11 +151,12 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 
 | 项 | 现状 | 挂载点 |
 |---|---|---|
-| **ai-guard 约束进循环** | ⬜ **0** | `ToolExecutorConfig.BeforeToolCall` 链——目前 `--approve` 等于裸奔 |
+| **内建安全底线** | ✅ 完成 | `internal/safetygate`，装在 `run.NewConfig` 的 `BeforeToolCall` 基底——**CLI 与 SDK 两种模式同时覆盖**，`--approve` 不可绕过 |
+| **ai-guard 策略外挂** | ⬜ | 走 hook 层接 SPT 的策略检查（`check-scope` 等，依赖 SPT 目录结构）|
 | **NATS 原生事件出口** | ⬜ **0** | `internal/runtime` 事件发射点的装饰器 |
 | **FreeLLMAPI 策略内嵌** | ⬜ **0** | `internal/provider` 层——路由与成本策略 |
 
-**这三项是 aikota 存在的理由。它们是 0，而不是"待优化"。**
+**这一层是 aikota 存在的理由。** 内建安全底线已落地（`--approve` 不再等于裸奔）；其余三项是 0，而不是"待优化"。
 
 ### 第 2 层 · 高杠杆，**可从外部借鉴设计**（借设计，不借代码）
 
