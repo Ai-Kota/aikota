@@ -31,7 +31,7 @@
 | 4 | Steering & 中断 | 部分 | `GetSteeringMessages` 每轮工具执行后注入 | steering 触发/来源较薄；无标准化运行时中断—引导 UX | P2 | 记录于本文（见 §Steering），并入 US-002 注入机制协同 |
 | 5 | 子 Agent 编排 | 较完整 | `SubAgentTool`、goroutine/process 两种隔离、`RunSubAgentOnce` | 基本满足，本轮不作为重点 | — | 不在本轮范围（PRD Non-Goal） |
 | 6 | 可观测性 | **已完成**（US-005 落地 + #569 契约化） | 事件流（10 种 `AgentEvent` + `CompactionEvent`）；headless stream-json 导出；plugin `OnEvent` 钩子；结构化遥测累计器（轮次/工具耗时/截断/compaction/上下文占用，`internal/runtime/telemetry.go`）；版本化导出 schema（`TelemetrySummary`，`aikota.telemetry/v1`）+ golden 一致性测试（#569） | OTel/外部后端导出仍属 Non-Goal | ~~P1~~ 已闭环 | US-005 → #251<br>#569（契约化） |
-| 7 | 安全护栏 | 部分 | trust 三态（目录信任 + 副作用工具确认）；`--approve` | 与 harness 其他机制未打通；无按工具/操作粒度的统一策略入口 | P2 | 记录于本文（见 §安全护栏），协同设计留作后期 US |
+| 7 | 安全护栏 | **部分** | trust 三态（目录信任 + 副作用工具确认）；`--approve`；**内建安全闸门**（`internal/safetygate`，装在 `run.NewConfig` 的 `BeforeToolCall` 基底，CLI 与 SDK 同覆盖，`--approve` 不可绕过）——破坏性命令 / 提权 / 供应链 / 工作区凭据文件 | 闸门是**固定底线**，尚无可配置的按工具粒度策略入口；与 hooks 层的策略检查未打通 | P2 | 闸门已落地；可配置策略待设计 |
 
 > 优先级判据：**P0** = 影响面最大、是长任务上下文溢出/CC 标志能力的直接诱因；**P1** = 支撑鲁棒性度量与错误恢复；**P2** = 次优先级，本文仅记录、协同设计后期展开。
 >
