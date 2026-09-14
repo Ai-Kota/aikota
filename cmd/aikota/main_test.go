@@ -119,20 +119,30 @@ func TestCwdChdirRootsEnv(t *testing.T) {
 	// run LIFO — leaving the process inside the temp dir when Windows tries to
 	// delete it ("the file is being used by another process").
 	t.Chdir(dir)
+	// Both sides are resolved before comparing, because two path spellings of
+	// the same directory are routine here and neither is wrong:
+	//   - macOS temp dirs are symlinks (/tmp → /private/tmp);
+	//   - Windows temp paths can carry an 8.3 short name (C:\Users\RUNNER~1\…
+	//     abbreviating runneradmin), and os.Getwd reports whichever form the
+	//     process was handed while t.TempDir returns the long one. That is a
+	//     GitHub Windows runner, and not a local machine, which is why this
+	//     comparison passed locally and failed in CI.
 	var err error
-	// macOS temp dirs are symlinks (/tmp → /private/tmp); os.Getwd resolves them,
-	// so compare against the resolved form.
 	want, err := filepath.EvalSymlinks(dir)
 	if err != nil {
-		t.Fatalf("EvalSymlinks: %v", err)
+		t.Fatalf("EvalSymlinks(want): %v", err)
 	}
 
 	env, err := run.SetupEnv("openrouter/free", "", "", "", "", true /*noTools*/, true /*noSkills*/, "", nil, false /*memEnabled*/, run.ToolPolicy{})
 	if err != nil {
 		t.Fatalf("SetupEnv: %v", err)
 	}
-	if env.Cwd != want {
-		t.Errorf("env.Cwd = %q, want %q (the chdir'd directory)", env.Cwd, want)
+	got, err := filepath.EvalSymlinks(env.Cwd)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(env.Cwd=%q): %v", env.Cwd, err)
+	}
+	if got != want {
+		t.Errorf("env.Cwd = %q (resolved %q), want %q (the chdir'd directory)", env.Cwd, got, want)
 	}
 }
 
