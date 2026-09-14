@@ -852,6 +852,22 @@ git push origin v0.2.0
 
 ---
 
+## 更多文档
+
+本 README 讲**怎么用**；更深的内容在 [`docs/`](docs/README.md)：
+
+| 想了解 | 看 |
+|---|---|
+| 模型连接是怎么实现的（驱动分层 / `/v1` 坑 / 重试 / 失败模型） | [docs/providers.md](docs/providers.md) |
+| 在 Windows 上开发（本地过、CI 挂的那些坑） | [docs/development-notes.md](docs/development-notes.md) |
+| 操作系统级隔离（Docker / micro-VM / 策略沙箱） | [docs/sandboxing.md](docs/sandboxing.md) |
+| aikota 往哪长、为什么不做某些事 | [docs/capability-roadmap.md](docs/capability-roadmap.md) |
+| harness 六个维度的现状与缺口 | [docs/harness-capability-matrix.md](docs/harness-capability-matrix.md) |
+
+**完整索引（按角色分了入口）见 [docs/README.md](docs/README.md)。**
+
+---
+
 ## 许可证
 
 参见仓库根目录的 [LICENSE](LICENSE)。
