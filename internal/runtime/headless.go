@@ -50,9 +50,10 @@ type HeadlessConfig struct {
 	// hooks into, independent of the output mode. It must not block.
 	OnEvent func(ev agentcore.AgentEvent)
 	// Progress receives human-readable sub-agent progress lines
-	// (SubAgentProgressEvent). Defaults to os.Stderr when nil. Progress is
-	// stderr-only by contract: it is never serialised onto Out (stdout), so it
-	// cannot pollute the final result text or the stream-json envelope stream.
+	// (SubAgentProgressEvent). Defaults to os.Stderr when nil. In stream-json
+	// mode the event is ALSO serialised onto Out as a machine-readable envelope
+	// (the stream-json path carries every AgentEvent, including sub-agent
+	// progress); the stderr line remains the human-readable rendering.
 	Progress io.Writer
 }
 
@@ -93,10 +94,12 @@ func RunHeadless(ctx context.Context, agentCtx *agentcore.AgentContext, cfg Head
 	// event; the serialiser runs first so a write failure is recorded even when a
 	// plugin observer is also wired.
 	//
-	// SubAgentProgressEvent (D-9) is special-cased: it is written as a
-	// human-readable line to the progress writer (stderr) and is deliberately
-	// excluded from the stream-json stdout path so it never pollutes the result
-	// output or the machine-readable envelope stream (progress is stderr-only).
+	// SubAgentProgressEvent is special-cased: it is written as a
+	// human-readable line to the progress writer (stderr) and, in stream-json
+	// mode, serialised onto Out like every other event — so a machine
+	// consumer of the stdout stream (orchestrators, bridges) sees sub-agent
+	// activity too. Consumers that only want the human view keep reading
+	// stderr; the two channels are independent.
 	progress := cfg.Progress
 	if progress == nil {
 		progress = os.Stderr
@@ -104,12 +107,12 @@ func RunHeadless(ctx context.Context, agentCtx *agentcore.AgentContext, cfg Head
 	streamJSON := cfg.Mode == StreamJSONMode
 	h.OnEvent = func(ev agentcore.AgentEvent) {
 		if pe, ok := ev.(agentcore.SubAgentProgressEvent); ok {
+			// Human channel: progress line to the stderr writer.
 			writeProgressLine(progress, pe)
-			if cfg.OnEvent != nil {
-				cfg.OnEvent(ev)
-			}
-			return
 		}
+		// Machine channel: in stream-json mode every event (including
+		// SubAgentProgressEvent) is serialised onto Out so stdout consumers see
+		// the complete event stream.
 		if streamJSON && writeErr == nil {
 			if err := writeEventJSON(cfg.Out, ev); err != nil {
 				writeErr = err
@@ -244,6 +247,15 @@ func eventEnvelope(ev agentcore.AgentEvent) map[string]any {
 		env["keptCount"] = e.KeptCount
 		if e.ErrorMessage != "" {
 			env["error"] = e.ErrorMessage
+		}
+	case agentcore.SubAgentProgressEvent:
+		env["toolCallId"] = e.ToolCallID
+		if e.Description != "" {
+			env["description"] = e.Description
+		}
+		env["activity"] = e.Activity
+		if e.Tokens > 0 {
+			env["tokens"] = e.Tokens
 		}
 	case agentcore.TelemetryEvent:
 		// The run-end telemetry summary: structured metrics a script can read

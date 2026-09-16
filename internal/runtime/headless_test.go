@@ -201,13 +201,14 @@ func emitTool(name string, ev agentcore.AgentEvent) execTool {
 	}
 }
 
-// TestRunHeadlessSubAgentProgressToStderr verifies the D-9 contract: a
-// SubAgentProgressEvent emitted during the run is rendered as a human-readable
-// line to the progress writer (stderr) and is NEVER serialised onto stdout —
-// neither the final result text nor the stream-json envelope stream may contain
-// it. The event is injected via a faux tool whose execution fires it on the
-// run's event stream (the same seam the loop uses).
-func TestRunHeadlessSubAgentProgressToStderr(t *testing.T) {
+// TestRunHeadlessSubAgentProgressChannels verifies the progress contract: a
+// SubAgentProgressEvent emitted during the run is always rendered as a
+// human-readable line to the progress writer (stderr). In print mode it never
+// touches stdout. In stream-json mode it is ALSO serialised onto stdout as a
+// machine-readable envelope, so stdout consumers see sub-agent activity. The
+// event is injected via a faux tool whose execution fires it on the run's
+// event stream (the same seam the loop uses).
+func TestRunHeadlessSubAgentProgressChannels(t *testing.T) {
 	const desc = "investigate the parser"
 	const activity = "Editing"
 
@@ -246,14 +247,70 @@ func TestRunHeadlessSubAgentProgressToStderr(t *testing.T) {
 			if !strings.Contains(stderr, desc) || !strings.Contains(stderr, activity) {
 				t.Errorf("stderr = %q, want it to contain description %q and activity %q", stderr, desc, activity)
 			}
-			// (b) stdout must not contain the progress event in any form.
-			if strings.Contains(stdout, "subagent_progress") {
-				t.Errorf("stdout must not contain the subagent_progress envelope, got %q", stdout)
-			}
-			if strings.Contains(stdout, desc) {
-				t.Errorf("stdout must not leak the progress description, got %q", stdout)
+			if mode.mode == StreamJSONMode {
+				// (b) stream-json: stdout carries the machine envelope.
+				if !strings.Contains(stdout, "subagent_progress") {
+					t.Errorf("stdout must contain the subagent_progress envelope, got %q", stdout)
+				}
+			} else {
+				// (b') print: stdout must not contain the progress event in any
+				// form (print mode writes only the final assistant text).
+				if strings.Contains(stdout, "subagent_progress") || strings.Contains(stdout, desc) {
+					t.Errorf("print stdout must not leak progress, got %q", stdout)
+				}
 			}
 		})
+	}
+}
+
+// TestSubAgentProgressEnvelopeShape pins the stream-json envelope fields a
+// machine consumer can rely on (type discriminant + observable payload).
+func TestSubAgentProgressEnvelopeShape(t *testing.T) {
+	var out bytes.Buffer
+	ev := agentcore.SubAgentProgressEvent{
+		ToolCallID:  "call-9",
+		Description: "investigate the parser",
+		Activity:    "Editing",
+		Tokens:      123,
+	}
+	if err := writeEventJSON(&out, ev); err != nil {
+		t.Fatalf("writeEventJSON: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(out.Bytes(), &env); err != nil {
+		t.Fatalf("envelope is not a JSON object: %v (%s)", err, out.String())
+	}
+	for key, want := range map[string]any{
+		"type":       "subagent_progress",
+		"toolCallId": "call-9",
+		"activity":   "Editing",
+		"tokens":     float64(123),
+	} {
+		if env[key] != want {
+			t.Errorf("envelope[%q] = %v, want %v", key, env[key], want)
+		}
+	}
+	if env["description"] != "investigate the parser" {
+		t.Errorf("envelope[description] = %v, want %q", env["description"], "investigate the parser")
+	}
+}
+
+// TestSubAgentProgressEnvelopeOmitsZeroFields verifies description/tokens are
+// omitted when empty/zero, keeping the envelope minimal.
+func TestSubAgentProgressEnvelopeOmitsZeroFields(t *testing.T) {
+	var out bytes.Buffer
+	if err := writeEventJSON(&out, agentcore.SubAgentProgressEvent{ToolCallID: "call-9", Activity: "Thinking"}); err != nil {
+		t.Fatalf("writeEventJSON: %v", err)
+	}
+	var env map[string]any
+	if err := json.Unmarshal(out.Bytes(), &env); err != nil {
+		t.Fatalf("envelope is not a JSON object: %v (%s)", err, out.String())
+	}
+	if _, ok := env["description"]; ok {
+		t.Error("envelope must omit empty description")
+	}
+	if _, ok := env["tokens"]; ok {
+		t.Error("envelope must omit zero tokens")
 	}
 }
 

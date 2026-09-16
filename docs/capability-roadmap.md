@@ -156,7 +156,7 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 |---|---|---|
 | **内建安全底线** | ✅ 完成 | `internal/safetygate`，装在 `run.NewConfig` 的 `BeforeToolCall` 基底——**CLI 与 SDK 两种模式同时覆盖**，`--approve` 不可绕过 |
 | **通用事件流出口** | ✅ 已有 | 机器可读的事件流：CLI 侧 `--output-format stream-json`（每个 `AgentEvent` 一行 JSON），SDK 侧 `Session.StreamEvents`。**这就是 aikota 提供的事件接口** |
-| **总线接入（NATS 等）** | ⬜ | **不在 aikota 内做**：由 AImlyForge 侧一个 bridge 消费上面的通用事件流，映射到 `aimly.*` 主题。aikota 不认识 NATS |
+| **总线接入（NATS 等）** | ⬜ 设计 | **不在 aikota 内做**：由 AImlyForge 侧一个 bridge 消费上面的通用事件流，映射到 `aimly.*` 主题。aikota 不认识 NATS。**设计稿：`docs/nats-session-publishing.md`（v0.2 方向 A，2026-09-16；v0.1 的 aikota 内嵌 NATS 方案已按 §5.5 否决）** |
 | **ai-guard 策略外挂** | ⬜ | 走 aikota 的 hook 层接 SPT 的策略检查（`check-scope` 等，依赖 SPT 目录结构）|
 | ~~模型网关策略内嵌~~ | ❌ **不做** | 路由策略在 `tools/free-tier-aggregator`（Go 网关）里；aikota 只用 `--base-url` + `--protocol` 接它的标准端点，**零改动**。见 §4.1 |
 
@@ -166,7 +166,7 @@ aikota 的差异化 = 与自有基础设施的原生耦合
 >
 > 缺的这 7 种恰好是**编排层最想要的**：运行起止、轮次边界、成本汇总、子 Agent 活动。
 >
-> **CLI 侧同理但不同因**：`--output-format stream-json` 10 种事件可用，但 `subagent_progress` 被**刻意排除**（`headless.go` 注释：progress 是 stderr-only by contract，避免污染机器可读的 stdout）。
+> **CLI 侧（已刷新 2026-09-16）**：`--output-format stream-json` 11 种事件可用（14 种内部事件全在 stdout 上，含 `subagent_progress`——原 stderr-only 契约已按 `docs/nats-session-publishing.md` §3.1 修订：stdout 走机器通道，stderr 进度行保留为人读通道，两者并存）。
 >
 > ⇒ **bridge 若建在 SDK 上，看不到子 Agent 和遥测；建在 stream-json 上，能看到遥测但看不到子 Agent 进度。** 两者都需要时，得先补事件面——这是一项独立工作，不是配置问题。
 
