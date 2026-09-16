@@ -134,7 +134,8 @@ var shellLookPath = exec.LookPath
 
 // shellProbe verifies a candidate interpreter can actually run a no-op command.
 // It is a package var so tests stub it; the default (defaultShellProbe) runs
-// "exit 0" through the candidate and treats any failure as "not usable".
+// "exit 0" through the candidate and treats failure — or diagnostic stderr
+// from a WSL relay that still exits 0 — as "not usable".
 var shellProbe = defaultShellProbe
 
 // gitBashCandidates are well-known MSYS2/Git Bash install points on Windows.
@@ -227,11 +228,16 @@ func resolveShell(explicit, goos string, lookPath func(string) (string, error)) 
 }
 
 // defaultShellProbe runs a no-op command ("exit 0") through the candidate
-// interpreter, capped at 5 s. A non-zero exit — or the interpreter not
-// existing at all — marks the candidate unusable so resolveShell moves on to
-// the next one. The 5 s cap protects against a wedged WSL launcher that
-// neither succeeds nor fails promptly; a probe timeout counts as "broken" and
-// the candidate is skipped rather than the agent frozen.
+// interpreter, capped at 5 s. It returns false (candidate unusable) when the
+// no-op fails OR when WSL relay diagnostics leak onto stderr.
+//
+// Why the stderr check matters: a broken default distro (missing /bin/sh,
+// misconfigured /etc/wsl.conf) makes "wsl -e /bin/sh -c \"exit 0\"" exit 0
+// while the WSL layer dumps its failure onto stderr — so exit code alone
+// cannot detect the defect (2026-09-16: docker-desktop-data with an invalid
+// automount.crossDistro key produced exactly this). For non-WSL candidates
+// (bash / powershell / cmd) "exit 0" writes no stderr, so the check is a
+// no-op there and the probe stays accurate.
 func defaultShellProbe(shell, flag string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -240,7 +246,30 @@ func defaultShellProbe(shell, flag string) bool {
 	// commands the tool would actually run.
 	args := strings.Fields(flag)
 	args = append(args, "exit 0")
-	return exec.CommandContext(ctx, shell, args...).Run() == nil
+	cmd := exec.CommandContext(ctx, shell, args...)
+	var errOut bytes.Buffer
+	cmd.Stderr = &errOut
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	// WSL relay failure signature: the launcher exits 0 but the distro layer
+	// reported an error ("WSL ... ERROR: CreateProcessCommon", "Unknown key",
+	// or a plain "wsl: ..." diagnostic line). Any such output means the
+	// distro could not run the shell, so the candidate is unusable even
+	// though the exit code said success.
+	return !looksLikeWSLRelayFailure(errOut.String())
+}
+
+// looksLikeWSLRelayFailure reports whether a no-op probe's stderr carries the
+// WSL layer's failure signature. The relay can fail in two documented shapes:
+// the log-style "<3>WSL (... - Relay) ERROR: CreateProcessCommon ..." and the
+// plain "wsl: <reason>" line (unknown key, no default distro, ...). Either
+// one means the launcher never actually ran the shell.
+func looksLikeWSLRelayFailure(stderr string) bool {
+	s := strings.ToLower(stderr)
+	return strings.Contains(s, "wsl") &&
+		(strings.Contains(s, "error") || strings.Contains(s, "unknown key") ||
+			strings.Contains(s, "no such file or directory") || strings.Contains(s, "not found"))
 }
 
 // streamWriter forwards each written chunk to onUpdate as a growing partial

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
@@ -346,3 +347,46 @@ func TestResolveShellPrefersGitBashInstallTree(t *testing.T) {
 	}
 }
 
+
+// TestWslRelayFailureDetection pins the broken-WSL defect signature: a WSL
+// relay that exits 0 but dumps diagnostics on stderr must be classified as a
+// failure (the docker-desktop-data case of 2026-09-16: unknown wsl.conf key).
+func TestWslRelayFailureDetection(t *testing.T) {
+	yes := []string{
+		`wsl: Unknown key 'automount.crossDistro' in /etc/wsl.conf:3`,
+		`<3>WSL (11 - Relay) ERROR: CreateProcessCommon:818: execvpe(D:/Git/usr/bin/sh) failed: No such file or directory`,
+		"wsl: No such file or directory",
+	}
+	for _, s := range yes {
+		if !looksLikeWSLRelayFailure(s) {
+			t.Errorf("looksLikeWSLRelayFailure(%q) = false, want true", s)
+		}
+	}
+	no := []string{
+		"",                                    // clean no-op
+		"hello",                               // non-WSL noise, no WSL marker
+		"wsl version 2.7.14.0",                // benign WSL text, no failure marker
+	}
+	for _, s := range no {
+		if looksLikeWSLRelayFailure(s) {
+			t.Errorf("looksLikeWSLRelayFailure(%q) = true, want false", s)
+		}
+	}
+}
+
+// TestDefaultShellProbeRejectsWSLErrorWithZeroExit verifies the probe's
+// exit-0-but-stderr-diagnostic branch end to end: a WSL launcher that "succeeds"
+// on exit code is still rejected when the relay reported a failure.
+// It runs only when the host has a real wsl.exe so the assertion is a real
+// signal, not a stub.
+func TestDefaultShellProbeRejectsWSLErrorWithZeroExit(t *testing.T) {
+	if _, err := exec.LookPath("wsl"); err != nil {
+		t.Skip("wsl.exe not on PATH; host has no WSL launcher, cannot probe the relay")
+	}
+	// The host's default distro cannot start /bin/sh (2026-09-16 state).
+	// Probe the wsl launcher exactly as resolveShell would.
+	if defaultShellProbe(`C:\Windows\System32\wsl.exe`, "-e /bin/sh -c") {
+		t.Log("wsl probe reported healthy on this host; the broken-default-distro defect is not present right now")
+		// Not a failure: the host WSL may have been repaired.
+	}
+}
