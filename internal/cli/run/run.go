@@ -75,7 +75,7 @@ type Env struct {
 // fully assembled tool set and then applied, so an unknown tool name is a usage
 // error rather than a silently ineffective boundary. It returns an error rather
 // than exiting so the caller owns exit-code mapping.
-func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, noSkills bool, systemPrompt string, appendSystemPrompt []string, memEnabled bool, policy ToolPolicy) (Env, error) {
+func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, noSkills bool, systemPrompt string, appendSystemPrompt []string, memEnabled bool, policy ToolPolicy, shell string) (Env, error) {
 	cwd, _ := os.Getwd()
 	prov, resolvedName, err := provider.ResolveProvider(model, baseURL, protocol, providerName, os.Getenv)
 	if err != nil {
@@ -85,7 +85,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 	if err != nil {
 		return Env{}, err
 	}
-	tools := BuiltinTools(cwd, noTools)
+	tools := BuiltinTools(cwd, ToolOpts{Disabled: noTools, Shell: shell})
 	// Open the persistent memory store once (issue #481) and expose it as the
 	// memory_search tool so the agent can recall earlier context. Memory is a
 	// tool, so it is skipped under --no-tools; memory.enabled=false disables it
@@ -114,7 +114,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 		childCreds := provider.NewCredentialStore(nil)
 		childCreds.SetOverride(resolvedName, apiKey)
 		factory := func() runtime.RunConfig {
-			childTools := ChildToolSet(cwd, policy)
+			childTools := ChildToolSet(cwd, policy, shell)
 			return runtime.RunConfig{
 				LoopConfig: runtime.LoopConfig{
 					Model:     model,
@@ -245,8 +245,11 @@ func resolveAppendInstructions(values []string) ([]string, error) {
 // when tools are disabled. The todo tool is stateful: a single TodoStore is
 // created here and held by the one TodoTool instance, so the task list persists
 // across calls within a run (a later write replaces the plan).
-func BuiltinTools(cwd string, disabled bool) []agentcore.AgentTool {
-	if disabled {
+// BuiltinTools returns the default tool set rooted at cwd, honoring opts.
+// Empty ToolOpts means the all-defaults set (the historical BuiltinTools
+// behavior).
+func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
+	if opts.Disabled {
 		return nil
 	}
 	// A single recorder is shared by the write and edit tools so /rewind can roll
@@ -263,7 +266,7 @@ func BuiltinTools(cwd string, disabled bool) []agentcore.AgentTool {
 		&agenttool.FindTool{Root: cwd},
 		&agenttool.RepoMapTool{Root: cwd},
 		&agenttool.VerifyTool{Root: cwd},
-		&agenttool.BashTool{Dir: cwd, Jobs: jobs},
+		&agenttool.BashTool{Dir: cwd, Jobs: jobs, Shell: opts.Shell},
 		&agenttool.BashOutputTool{Jobs: jobs},
 		&agenttool.BashKillTool{Jobs: jobs},
 		&agenttool.TodoTool{Store: agenttool.NewTodoStore()},
@@ -272,13 +275,27 @@ func BuiltinTools(cwd string, disabled bool) []agentcore.AgentTool {
 	}
 }
 
+// ToolOpts is the per-run tool-set configuration shared by BuiltinTools and its
+// variants. New callers pass ToolOpts{Disabled: noTools} etc.; legacy
+// (cwd, disabled) call sites are rewritten to this shape so the tool set stays
+// a single construction point.
+type ToolOpts struct {
+	// Disabled, when true, yields nil (the historical --no-tools behavior).
+	Disabled bool
+	// Shell, when non-empty, pins the bash tool's interpreter for this run
+	// ("<shell> -c <command>"; see agenttool.BashTool.Shell). Empty leaves the
+	// candidate-probe chain (Git Bash install tree → PATH bash → wsl →
+	// powershell → cmd) to pick a healthy one.
+	Shell string
+}
+
 // BuiltinToolsExcept returns the default builtin tool set (BuiltinTools) with
 // any tool whose name matches one of the except names removed. It backs the
 // nesting guard for the generic task tool: a child sub-agent's registry is built
 // with "task" excluded so a child can never spawn further sub-agents, capping
 // delegation depth at one. With no except names it is equivalent to BuiltinTools.
-func BuiltinToolsExcept(cwd string, disabled bool, except ...string) []agentcore.AgentTool {
-	all := BuiltinTools(cwd, disabled)
+func BuiltinToolsExcept(cwd string, opts ToolOpts, except ...string) []agentcore.AgentTool {
+	all := BuiltinTools(cwd, opts)
 	if len(except) == 0 || len(all) == 0 {
 		return all
 	}

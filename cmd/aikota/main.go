@@ -168,6 +168,12 @@ type cliOptions struct {
 	// but can never widen the boundary.
 	allowedTools    []string
 	disallowedTools []string
+	// shell, when non-empty, pins the bash tool's interpreter for this run
+	// ("<shell> -c <command>"). It is the escape hatch for hosts where the
+	// candidate-probe chain cannot pick a healthy interpreter; an explicit
+	// value is never probed. Source precedence: --shell flag > config.toml
+	// shell > built-in default (the probe chain).
+	shell string
 }
 
 func main() {
@@ -213,6 +219,7 @@ func main() {
 	flag.BoolVarP(&opts.noTools, "no-tools", "n", false, "disable the built-in file/shell tools")
 	flag.StringArrayVar(&opts.allowedTools, "allowed-tools", nil, "restrict the model to these tools (repeatable, comma-separated, case-insensitive); empty means no restriction and --disallowed-tools wins on conflict")
 	flag.StringArrayVar(&opts.disallowedTools, "disallowed-tools", nil, "remove these tools from the model's set (repeatable, comma-separated, case-insensitive); takes precedence over --allowed-tools")
+	flag.StringVar(&opts.shell, "shell", "", "pin the bash tool's interpreter for this run as <shell> -c <command> (e.g. a Git Bash path on a host whose PATH 'bash' is a broken WSL alias); empty leaves the health-probe candidate chain to pick")
 	flag.BoolVarP(&opts.listSessions, "list-sessions", "l", false, "list stored interactive sessions and exit")
 	flag.StringVarP(&opts.resumeID, "resume", "r", "", "resume the interactive session with this id")
 	flag.BoolVarP(&opts.continueLast, "continue", "c", false, "resume the most recent interactive session")
@@ -360,6 +367,11 @@ func applyFileConfig(opts *cliOptions, cfg config.FileConfig, changed func(strin
 	if len(cfg.DisallowedTools) > 0 && !changed("disallowed-tools") {
 		opts.disallowedTools = cfg.DisallowedTools
 	}
+	// Shell (config tier) pins the bash tool's interpreter for this run; a CLI
+	// --shell still wins (standard flag > file > default precedence).
+	if cfg.Shell != "" && !changed("shell") {
+		opts.shell = cfg.Shell
+	}
 	// prompts (settings tier) are additive with --prompt-template (CLI tier,
 	// wired in #339), so they are always passed through when present.
 	if len(cfg.Prompts) > 0 {
@@ -447,7 +459,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 			fmt.Fprintln(errOut, "aikota: no prompt (use -p \"...\" or positional args)")
 			return 2
 		}
-		env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
+		env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
 		if err != nil {
 			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return setupExitCode(err)
@@ -523,7 +535,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		return 2
 	}
 
-	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
+	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
 	if err != nil {
 		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)
@@ -575,7 +587,7 @@ func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int
 		fmt.Fprintf(errOut, "aikota: --github-review requires a webhook secret in $%s\n", opts.githubWebhookSecretEnv)
 		return 2
 	}
-	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools))
+	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
 	if err != nil {
 		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)

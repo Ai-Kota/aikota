@@ -26,7 +26,7 @@ func setupToolNames(t *testing.T, policy ToolPolicy) []string {
 	t.Helper()
 	t.Setenv("OPENROUTER_API_KEY", "test-key")
 	t.Setenv("AIKOTA_HOME", t.TempDir()) // isolate plugin/skill discovery
-	env, err := SetupEnv("openrouter/free", "", "", "", "", false /*noTools*/, true /*noSkills*/, "", nil, false /*memEnabled*/, policy)
+	env, err := SetupEnv("openrouter/free", "", "", "", "", false /*noTools*/, true /*noSkills*/, "", nil, false /*memEnabled*/, policy, "")
 	if err != nil {
 		t.Fatalf("SetupEnv: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestSetupEnvUnconstrainedIsUnchanged(t *testing.T) {
 func TestSetupEnvRejectsUnknownToolName(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "test-key")
 	t.Setenv("AIKOTA_HOME", t.TempDir())
-	_, err := SetupEnv("openrouter/free", "", "", "", "", false, true, "", nil, false, NewToolPolicy([]string{"raed"}, nil))
+	_, err := SetupEnv("openrouter/free", "", "", "", "", false, true, "", nil, false, NewToolPolicy([]string{"raed"}, nil), "")
 	if err == nil {
 		t.Fatal("SetupEnv = nil error, want a failure for the misspelled tool name")
 	}
@@ -112,7 +112,7 @@ func TestSetupEnvRejectsUnknownToolName(t *testing.T) {
 // dispatched by the task tool must not regain a tool the parent's policy removed,
 // or `--disallowed-tools bash` would be bypassable by delegating.
 func TestChildToolSetInheritsPolicy(t *testing.T) {
-	child := names(ChildToolSet("/tmp", NewToolPolicy(nil, []string{"bash"})))
+	child := names(ChildToolSet("/tmp", NewToolPolicy(nil, []string{"bash"}), ""))
 	if contains(child, "bash") {
 		t.Errorf("child regained the denied bash tool: %q", child)
 	}
@@ -123,13 +123,13 @@ func TestChildToolSetInheritsPolicy(t *testing.T) {
 		t.Errorf("child lost an un-denied tool: %q", child)
 	}
 
-	allowOnly := names(ChildToolSet("/tmp", NewToolPolicy([]string{"read"}, nil)))
+	allowOnly := names(ChildToolSet("/tmp", NewToolPolicy([]string{"read"}, nil), ""))
 	if strings.Join(allowOnly, ",") != "read" {
 		t.Errorf("child under an allow list = %q, want exactly [read]", allowOnly)
 	}
 
 	// With no policy the child is the plain nesting-guarded builtin set.
-	unconstrained := names(ChildToolSet("/tmp", ToolPolicy{}))
+	unconstrained := names(ChildToolSet("/tmp", ToolPolicy{}, ""))
 	if !contains(unconstrained, "bash") || contains(unconstrained, "task") {
 		t.Errorf("unconstrained child set = %q, want builtins minus task", unconstrained)
 	}
@@ -146,7 +146,7 @@ func TestSetupEnvSkillsGatedOnFilteredReadTool(t *testing.T) {
 	t.Setenv("AIKOTA_SKILLS_DIR", skillsDir)
 	writePolicySkill(t, skillsDir, "weather", "get the weather")
 
-	withRead, err := SetupEnv("openrouter/free", "", "", "", "", false, false, "", nil, false, ToolPolicy{})
+	withRead, err := SetupEnv("openrouter/free", "", "", "", "", false, false, "", nil, false, ToolPolicy{}, "")
 	if err != nil {
 		t.Fatalf("SetupEnv (unconstrained): %v", err)
 	}
@@ -154,7 +154,7 @@ func TestSetupEnvSkillsGatedOnFilteredReadTool(t *testing.T) {
 		t.Fatal("unconstrained run must advertise skills; the fixture or gate is wrong")
 	}
 
-	withoutRead, err := SetupEnv("openrouter/free", "", "", "", "", false, false, "", nil, false, NewToolPolicy(nil, []string{"read"}))
+	withoutRead, err := SetupEnv("openrouter/free", "", "", "", "", false, false, "", nil, false, NewToolPolicy(nil, []string{"read"}), "")
 	if err != nil {
 		t.Fatalf("SetupEnv (read denied): %v", err)
 	}
@@ -198,7 +198,7 @@ func TestSetupEnvNoToolsWithPolicyWarns(t *testing.T) {
 	stderr := captureStderr(t, func() {
 		// A deliberately misspelled name: with tools present this would abort with
 		// exit code 2, but --no-tools skips validation, so it must not error.
-		env, err = SetupEnv("openrouter/free", "", "", "", "", true /*noTools*/, true /*noSkills*/, "", nil, false, NewToolPolicy([]string{"raed"}, nil))
+		env, err = SetupEnv("openrouter/free", "", "", "", "", true /*noTools*/, true /*noSkills*/, "", nil, false, NewToolPolicy([]string{"raed"}, nil), "")
 	})
 	if err != nil {
 		t.Fatalf("SetupEnv(--no-tools + policy) = %v, want nil (validation is skipped, not failed)", err)

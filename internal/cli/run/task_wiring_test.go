@@ -10,7 +10,7 @@ import "testing"
 // task sub-agent (builtins minus "task") never contains "task", and that
 // excluding a name actually present removes it.
 func TestBuiltinToolsExceptExcludesTask(t *testing.T) {
-	child := BuiltinToolsExcept("/tmp", false, "task")
+	child := BuiltinToolsExcept("/tmp", ToolOpts{}, "task")
 	if len(child) == 0 {
 		t.Fatal("expected builtin tools in the child set")
 	}
@@ -20,8 +20,8 @@ func TestBuiltinToolsExceptExcludesTask(t *testing.T) {
 		}
 	}
 	// Excluding a name that IS present shrinks the set by exactly that tool.
-	full := BuiltinToolsExcept("/tmp", false)
-	dropped := BuiltinToolsExcept("/tmp", false, full[0].Name())
+	full := BuiltinToolsExcept("/tmp", ToolOpts{})
+	dropped := BuiltinToolsExcept("/tmp", ToolOpts{}, full[0].Name())
 	if len(dropped) != len(full)-1 {
 		t.Errorf("excluding %q: got %d tools, want %d", full[0].Name(), len(dropped), len(full)-1)
 	}
@@ -30,10 +30,10 @@ func TestBuiltinToolsExceptExcludesTask(t *testing.T) {
 // TestBuiltinToolsExceptNoExcept verifies that with no except names the result
 // matches BuiltinTools, and that a disabled tool set stays empty.
 func TestBuiltinToolsExceptNoExcept(t *testing.T) {
-	if got, want := len(BuiltinToolsExcept("/tmp", false)), len(BuiltinTools("/tmp", false)); got != want {
+	if got, want := len(BuiltinToolsExcept("/tmp", ToolOpts{}, "task")), len(BuiltinTools("/tmp", ToolOpts{})); got != want {
 		t.Errorf("no-except size = %d, want %d", got, want)
 	}
-	if got := BuiltinToolsExcept("/tmp", true, "task"); got != nil {
+	if got := BuiltinToolsExcept("/tmp", ToolOpts{Disabled: true}, "task"); got != nil {
 		t.Errorf("disabled tools should be nil, got %v", got)
 	}
 }

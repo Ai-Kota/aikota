@@ -51,6 +51,13 @@ type FileConfig struct {
 	// so passing --allowed-tools can widen a boundary the file narrowed.
 	AllowedTools    []string `toml:"allowed_tools"`
 	DisallowedTools []string `toml:"disallowed_tools"`
+	// Shell, when non-empty, pins the bash tool's interpreter for this machine
+	// as "<shell> -c <command>". It is the config-tier escape hatch for hosts
+	// where the health-probe candidate chain cannot pick a healthy interpreter
+	// (e.g. a broken WSL alias shadowing a good Git Bash). A CLI --shell flag
+	// (when present) still wins over this value; empty leaves the probe chain
+	// to pick.
+	Shell string `toml:"shell"`
 	// Prompts is the config.toml `prompts` array: paths (files or dirs) to load
 	// prompt templates from at the settings tier (mirrors pi's settings prompts).
 	Prompts []string `toml:"prompts"`

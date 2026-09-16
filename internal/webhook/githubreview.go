@@ -119,7 +119,7 @@ var readOnlyToolNames = map[string]struct{}{"read": {}, "grep": {}, "find": {}}
 // set a review session runs with.
 func ReadOnlyTools(cwd string) []agentcore.AgentTool {
 	var out []agentcore.AgentTool
-	for _, t := range run.BuiltinTools(cwd, false) {
+	for _, t := range run.BuiltinTools(cwd, run.ToolOpts{}) {
 		if _, ok := readOnlyToolNames[t.Name()]; ok {
 			out = append(out, t)
 		}

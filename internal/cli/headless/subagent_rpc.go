@@ -97,7 +97,7 @@ func handleSubAgentRequest(ctx context.Context, enc *json.Encoder, req *jsonrpc.
 		return
 	}
 	cwd, _ := os.Getwd()
-	tools := filterBuiltinTools(run.BuiltinTools(cwd, false), params.Tools)
+	tools := filterBuiltinTools(run.BuiltinTools(cwd, run.ToolOpts{}), params.Tools)
 	reg := run.ToolRegistry(tools)
 	creds := provider.NewCredentialStore(nil) // env-resolved
 	runCfg := runtime.RunConfig{

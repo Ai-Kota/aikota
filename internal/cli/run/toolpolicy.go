@@ -209,6 +209,6 @@ func nameSet(names []string) map[string]struct{} {
 // would be a one-line escape from the boundary: under --disallowed-tools bash the
 // model could dispatch a sub-agent and run bash there instead. Any future spawn
 // path must route through here for the same reason.
-func ChildToolSet(cwd string, policy ToolPolicy) []agentcore.AgentTool {
-	return ApplyToolPolicy(BuiltinToolsExcept(cwd, false, "task"), policy)
+func ChildToolSet(cwd string, policy ToolPolicy, shell string) []agentcore.AgentTool {
+	return ApplyToolPolicy(BuiltinToolsExcept(cwd, ToolOpts{Shell: shell}, "task"), policy)
 }

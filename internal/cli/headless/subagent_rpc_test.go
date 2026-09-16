@@ -24,7 +24,7 @@ import (
 // list keeps all builtins, a subset keeps only the named tools, and unknown
 // names are silently ignored.
 func TestFilterBuiltinTools(t *testing.T) {
-	all := run.BuiltinTools(t.TempDir(), false)
+	all := run.BuiltinTools(t.TempDir(), run.ToolOpts{})
 	if len(all) == 0 {
 		t.Fatal("BuiltinTools returned no tools")
 	}
