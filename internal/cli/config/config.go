@@ -117,6 +117,13 @@ func LoadFileConfig(path string) (FileConfig, error) {
 	}
 	var cfg FileConfig
 	if err := toml.Unmarshal(data, &cfg); err != nil {
+		// The most frequent config mistake is a Windows shell path written with
+		// single backslashes in a basic string: shell = "D:\Git\usr\bin\bash.exe"
+		// where "\G" is not a valid TOML escape. Detect that specific class of
+		// error and say exactly what to do, instead of a bare "invalid escape".
+		if strings.Contains(err.Error(), "invalid escape") {
+			return FileConfig{}, fmt.Errorf("parse config %s: %w — a Windows path in a basic string needs double backslashes (shell = \"D:\\\\Git\\\\usr\\\\bin\\\\bash.exe\") or a literal string (shell = 'D:\\Git\\usr\\bin\\bash.exe')", path, err)
+		}
 		return FileConfig{}, fmt.Errorf("parse config %s: %w", path, err)
 	}
 	return cfg, nil

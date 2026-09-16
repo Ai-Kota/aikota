@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -172,5 +173,46 @@ func TestLoadFileConfig_DreamTableAbsent(t *testing.T) {
 	// ints zero (→ defaults downstream). Parsing must not error.
 	if cfg.Dream.Enabled != nil || cfg.Dream.IntervalDays != 0 || cfg.Dream.RecentSessions != 0 {
 		t.Errorf("absent dream table = %+v, want zero-value", cfg.Dream)
+	}
+}
+
+// TestLoadFileConfigShellPathEscapeHint pins the actionable error for the most
+// common config mistake: a Windows shell path with single backslashes in a
+// basic TOML string ("\G" is not a valid escape).
+func TestLoadFileConfigShellPathEscapeHint(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	// Single-backslash Windows path in a basic string: invalid TOML escape.
+	// Built via backticks so the backslashes survive into the TOML bytes verbatim.
+	invalid := "shell = \"D:" + `\Git` + `\usr` + `\bin` + `\bash.exe` + "\"\n"
+	if err := os.WriteFile(path, []byte(invalid), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	_, err := LoadFileConfig(path)
+	if err == nil {
+		t.Fatal("LoadFileConfig = nil error, want a parse failure for an invalid escape")
+	}
+	if !strings.Contains(err.Error(), "double backslashes") {
+		t.Errorf("error = %q, want the double-backslash / literal-string hint", err.Error())
+	}
+	// And the correct forms must parse cleanly.
+	valid := []string{
+		"shell = \"D:" + `\\Git` + `\\usr` + `\\bin` + `\\bash.exe` + "\"\n",
+		"shell = 'D:" + `\Git` + `\usr` + `\bin` + `\bash.exe` + "'\n",
+	}
+	for i, ok := range valid {
+		p2 := filepath.Join(dir, "ok.toml")
+		if werr := os.WriteFile(p2, []byte(ok), 0o644); werr != nil {
+			t.Fatal(werr)
+		}
+		cfg, lerr := LoadFileConfig(p2)
+		if lerr != nil {
+			t.Errorf("LoadFileConfig(form %d) = %v, want success", i, lerr)
+			continue
+		}
+		want := "D:" + `\Git\usr\bin\bash.exe`
+		if cfg.Shell != want {
+			t.Errorf("form %d: Shell = %q, want %q", i, cfg.Shell, want)
+		}
 	}
 }

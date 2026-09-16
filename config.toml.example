@@ -43,6 +43,18 @@ no_tools = false
 # allowed_tools = ["read", "grep"]
 # disallowed_tools = ["bash", "bash_output", "kill_bash"]
 
+# Pin the bash tool's interpreter for this machine (escape hatch when the
+# health-probe chain cannot pick a healthy shell, e.g. a broken WSL alias
+# shadowing a good Git Bash). Used verbatim as <shell> -c <command>; no probe.
+# Precedence: --shell CLI flag > this value > the built-in probe chain.
+#
+# NOTE (TOML escaping): Windows backslash paths MUST be double-backslashed in
+# basic strings ("\G" is not a valid TOML escape and fails to parse):
+#   shell = "D:\\Git\\usr\\bin\\bash.exe"
+# Or use a literal (single-quoted) string, which takes the path verbatim:
+#   shell = 'D:\Git\usr\bin\bash.exe'
+# shell = "D:\\Git\\usr\\bin\\bash.exe"
+
 # Disable skill discovery (do not load skills under ~/.agents/skills as /skill-name commands).
 no_skills = false
 
