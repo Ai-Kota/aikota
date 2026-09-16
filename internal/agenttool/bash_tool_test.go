@@ -231,7 +231,15 @@ func TestTruncateBashOutputByteCount(t *testing.T) {
 
 // TestResolveShell covers the platform-aware interpreter selection (issue #518).
 // It injects goos + a lookPath stub so every branch runs regardless of the host.
+// The candidate probe (shellProbe) and install-tree existence check
+// (fileExists) are stubbed so the test is deterministic and never spawns a
+// process or depends on the host's Git/WSL layout.
 func TestResolveShell(t *testing.T) {
+	origProbe, origFileExists := shellProbe, fileExists
+	defer func() { shellProbe, fileExists = origProbe, origFileExists }()
+	shellProbe = func(string, string) bool { return true } // accept every candidate
+	fileExists = func(string) bool { return false }        // no install-tree hits
+
 	found := func(name string) func(string) (string, error) {
 		return func(s string) (string, error) {
 			if s == name {
@@ -254,6 +262,7 @@ func TestResolveShell(t *testing.T) {
 		{"non-windows always bash", "", "linux", none, "-c", "bash"},
 		{"darwin always bash", "", "darwin", none, "-c", "bash"},
 		{"windows with bash", "", "windows", found("bash"), "-c", "bash"},
+		{"windows with wsl launcher", "", "windows", found("wsl"), "-e /bin/sh -c", "wsl"},
 		{"windows falls back to powershell", "", "windows", found("powershell"), "-Command", "powershell"},
 		{"windows falls back to cmd", "", "windows", none, "/C", "cmd"},
 	}
@@ -267,6 +276,73 @@ func TestResolveShell(t *testing.T) {
 				t.Errorf("shell = %q, want to contain %q", shell, tc.wantShellHas)
 			}
 		})
+	}
+}
+
+// TestResolveShellSkipsBrokenCandidates pins the healthy-fallback contract:
+// when a candidate fails its probe (e.g. a WSL launcher that cannot start a
+// shell, or a broken bash alias), resolveShell moves to the next candidate
+// instead of committing to the broken one. This is the guard against the host
+// defect where the default WSL distro could not start /bin/sh and every bash
+// tool call failed.
+func TestResolveShellSkipsBrokenCandidates(t *testing.T) {
+	origProbe, origFileExists := shellProbe, fileExists
+	defer func() { shellProbe, fileExists = origProbe, origFileExists }()
+	fileExists = func(string) bool { return false }
+
+	// "bash" on PATH resolves to a broken interpreter; "wsl" also broken;
+	// "powershell" is healthy. Expected: powershell wins.
+	broken := map[string]bool{"C:\\bin\\bash": false, "C:\\bin\\wsl": false}
+	shellProbe = func(shell string, flag string) bool {
+		if v, ok := broken[shell]; ok {
+			return v
+		}
+		return true
+	}
+	// lookPath finds all three, so the candidate order is bash → wsl → powershell.
+	lookAll := func(s string) (string, error) {
+		if s == "bash" || s == "wsl" || s == "powershell" {
+			return `C:\bin\` + s, nil
+		}
+		return "", fmt.Errorf("not found")
+	}
+	shell, flag := resolveShell("", "windows", lookAll)
+	if !strings.Contains(shell, "powershell") {
+		t.Errorf("shell = %q, want the healthy powershell fallback", shell)
+	}
+	if flag != "-Command" {
+		t.Errorf("flag = %q, want -Command", flag)
+	}
+}
+
+// TestResolveShellPrefersGitBashInstallTree pins that a healthy Git Bash in
+// its install tree is preferred over "bash" on PATH (which may be a broken
+// WindowsApps alias). The install-tree candidate is probed clean, so it wins
+// even when a PATH bash also exists.
+func TestResolveShellPrefersGitBashInstallTree(t *testing.T) {
+	origProbe, origFileExists, origCandidates := shellProbe, fileExists, gitBashCandidates
+	defer func() {
+		shellProbe, fileExists, gitBashCandidates = origProbe, origFileExists, origCandidates
+	}()
+	shellProbe = func(string, string) bool { return true }
+
+	const gitBash = `D:\Git\usr\bin\bash.exe`
+	gitBashCandidates = []string{gitBash}
+	fileExists = func(p string) bool { return p == gitBash }
+
+	// PATH also has a (broken) bash; the install-tree one must win.
+	found := func(s string) (string, error) {
+		if s == "bash" {
+			return `C:\Windows\System32\bash.exe`, nil
+		}
+		return "", fmt.Errorf("not found")
+	}
+	shell, flag := resolveShell("", "windows", found)
+	if shell != gitBash {
+		t.Errorf("shell = %q, want the install-tree Git Bash %q", shell, gitBash)
+	}
+	if flag != "-c" {
+		t.Errorf("flag = %q, want -c", flag)
 	}
 }
 

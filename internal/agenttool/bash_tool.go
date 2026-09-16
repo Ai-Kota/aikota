@@ -10,8 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -130,29 +132,115 @@ func (t *BashTool) ExecutionMode() agentcore.ToolExecutionMode {
 // simulate a Windows box with or without bash installed.
 var shellLookPath = exec.LookPath
 
+// shellProbe verifies a candidate interpreter can actually run a no-op command.
+// It is a package var so tests stub it; the default (defaultShellProbe) runs
+// "exit 0" through the candidate and treats any failure as "not usable".
+var shellProbe = defaultShellProbe
+
+// gitBashCandidates are well-known MSYS2/Git Bash install points on Windows.
+// They are consulted before "bash" on PATH because the PATH entry can be a
+// broken WindowsApps alias (C:\Windows\System32\bash.exe routes to WSL and
+// fails when no distro is installed, or when WSL itself is misconfigured);
+// the real MSYS binary in the install tree never depends on WSL. A missing
+// install point is simply not a candidate rather than an error. It is a
+// package var so tests can point it at temporary install trees.
+var gitBashCandidates = []string{
+	`C:\Program Files\Git\usr\bin\bash.exe`,
+	`C:\Program Files (x86)\Git\usr\bin\bash.exe`,
+	`C:\Program Files\Git for Windows\usr\bin\bash.exe`,
+	`C:\Program Files (x86)\Git for Windows\usr\bin\bash.exe`,
+}
+
+// fileExists reports whether path is an existing regular file. It is a package
+// var so tests can stub the install-tree existence check without touching the
+// host filesystem.
+var fileExists = func(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
 // resolveShell picks the interpreter and the flag that makes it read the command
-// from the next argument. An explicit shell (BashTool.Shell) is always honored as
-// a POSIX-style "<shell> -c <command>".
+// from the next argument. An explicit shell (BashTool.Shell) is always honored
+// as a POSIX-style "<shell> -c <command>".
 //
-// On Windows with no explicit shell, the naive "bash -c" hardcode fails on stock
-// machines that have no bash on PATH — the model then retries bash blindly and
-// every call errors (issue #518). So we prefer a real bash when one is present
-// (Git Bash / WSL / MSYS), since commands are authored in bash syntax, and fall
-// back to PowerShell, then cmd, so a command still runs on a bare Windows box.
+// On Windows with no explicit shell, the naive "bash -c" hardcode fails on
+// stock machines that have no bash on PATH — the model then retries bash
+// blindly and every call errors (issue #518). Worse, "bash" on PATH is not
+// guaranteed to be a healthy bash: the App Execution alias
+// (C:\Windows\System32\bash.exe) routes into WSL, and a WSL install with no
+// usable distro (or a misconfigured /etc/wsl.conf) makes every launch fail.
+// So the Windows candidate order is:
+//
+//  1. MSYS/Git Bash from its install tree (native, no WSL dependency),
+//  2. "bash" on PATH (healthy WSL/MSYS2 installs land here),
+//  3. "wsl" launcher (bash syntax inside a distro),
+//  4. "powershell", then "cmd",
+//
+// and each candidate is probed with a no-op command ("exit 0") so a broken
+// candidate is skipped instead of failing every tool call. The first candidate
+// that probes clean wins.
 func resolveShell(explicit, goos string, lookPath func(string) (string, error)) (shell, flag string) {
 	if explicit != "" {
 		return explicit, "-c"
 	}
-	if goos == "windows" {
-		if p, err := lookPath("bash"); err == nil {
-			return p, "-c"
-		}
-		if p, err := lookPath("powershell"); err == nil {
-			return p, "-Command"
-		}
-		return "cmd", "/C"
+	if goos != "windows" {
+		// POSIX platforms keep the historical behavior: bash as-is, no probe
+		// (a missing bash still surfaces as the actionable *exec.Error in
+		// Execute, which is the correct signal there).
+		return "bash", "-c"
 	}
-	return "bash", "-c"
+
+	type candidate struct {
+		shell string
+		flag  string
+	}
+	var cands []candidate
+
+	// 1. Git Bash / MSYS2 from the install tree: never routes through WSL.
+	for _, p := range gitBashCandidates {
+		if fileExists(p) {
+			cands = append(cands, candidate{p, "-c"})
+		}
+	}
+	// 2. "bash" on PATH: healthy WSL or MSYS installs register here.
+	if p, err := lookPath("bash"); err == nil {
+		cands = append(cands, candidate{p, "-c"})
+	}
+	// 3. The WSL launcher itself: runs bash syntax inside a distro.
+	if p, err := lookPath("wsl"); err == nil {
+		cands = append(cands, candidate{p, "-e /bin/sh -c"})
+	}
+	// 4. Windows-native fallbacks.
+	if p, err := lookPath("powershell"); err == nil {
+		cands = append(cands, candidate{p, "-Command"})
+	}
+	cands = append(cands, candidate{`C:\Windows\System32\cmd.exe`, "/C"})
+
+	for _, c := range cands {
+		if shellProbe(c.shell, c.flag) {
+			return c.shell, c.flag
+		}
+	}
+	// Nothing probed clean: return the first candidate anyway so Execute's
+	// *exec.Error path produces the actionable guidance message.
+	return cands[0].shell, cands[0].flag
+}
+
+// defaultShellProbe runs a no-op command ("exit 0") through the candidate
+// interpreter, capped at 5 s. A non-zero exit — or the interpreter not
+// existing at all — marks the candidate unusable so resolveShell moves on to
+// the next one. The 5 s cap protects against a wedged WSL launcher that
+// neither succeeds nor fails promptly; a probe timeout counts as "broken" and
+// the candidate is skipped rather than the agent frozen.
+func defaultShellProbe(shell, flag string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// For the WSL launcher the flag is "-e /bin/sh -c"; the probe therefore
+	// becomes: wsl -e /bin/sh -c exit 0, which is the exact shape of the
+	// commands the tool would actually run.
+	args := strings.Fields(flag)
+	args = append(args, "exit 0")
+	return exec.CommandContext(ctx, shell, args...).Run() == nil
 }
 
 // streamWriter forwards each written chunk to onUpdate as a growing partial
