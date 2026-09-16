@@ -122,9 +122,30 @@ tools/aikota-bridge/
 | 事件面 | 不补（直接全量发） | stream-json 补 `subagent_progress`（aikota 通用改动） |
 | 交互会话 | 直接覆盖 | 本期不覆盖（§2 要点 3），后续独立立项 |
 
-## 6. 待评审清单
+## 6. 待评审清单（2026-09-16 刷新）
 
-- [ ] §3.1 stream-json 补 `subagent_progress` 的契约修订（stderr-only 注释需同步改）
-- [ ] §3.2 SDK 事件面补全是否本期做（建议否，先 bridge 跑通）
-- [ ] subject 命名 `aimly.agent.aikota.event.<sid>` 的中枢登记口径（§4）
-- [ ] JetStream 持久化是否本期建 stream（建议否，Core 先行）
+- [x] §3.1 stream-json 补 `subagent_progress` —— 已落地（aikota commit `20f4cdc`，stderr 人读通道保留）
+- [x] §3.2 SDK 事件面补全 —— **本期不做**（bridge 消费的是 stream-json，SDK 缺口留待交互会话接入时立项）
+- [ ] subject 命名 `aimly.agent.aikota.event.<sid>` 的中枢登记口径 —— 待 `deploy/nats/NEURAL_BACKBONE.md §4.5` 主题注册表登记
+- [x] JetStream 持久化 —— **本期不做**，Core 先行；历史回放靠 aikota 会话 JSONL 兜底
+
+## 7. 实施记录（v0.2 落地）
+
+- **bridge 模块**：`tools/aikota-bridge/`（commit `107b58d`）——spawn aikota 无头流 →
+  `aimly.agent.aikota.event.<sid>`；pre-session 行缓冲 + `agent_start` 后补发
+  （替换早期"共享 `.pre` subject"的假兜底）；subject 前缀单一真相源
+  （bridge ↔ aikota-sub 共享 `bridge.SubjectPrefix`）。
+- **最小订阅端**：`cmd/aikota-sub`（同仓）——人读进度渲染 + `-json` 派生会话摘要；
+  全链路真实验证过（clean NATS + 真实 aikota + deepseek：40 事件 0 丢弃）。
+- **订阅方契约 v1**（WorkBoard 接入以此为准）：
+
+  ```json
+  {"sessionId":"…","status":"ok|error|unknown","turns":2,"toolCalls":1,
+   "tools":["read"],"error":"","events":40}
+  ```
+
+  字段口径：`turns`/`toolCalls`/`tools` 与 aikota 内置 `telemetry` 事件同源；
+  `events` 含补发的 pre-session 行，等于 bridge `Report()` 的 published 数；
+  `unknown` = 只跟到会话尾部（未见任何 turn）的 partial follow。
+- **natsutil 行为变更**：`DefaultConnect` 未设 `NATS_CA_FILE` 时不再默认强加项目
+  私有 CA（明文本地 NATS 开箱即用；项目集群显式设路径，commit `1ddf831`）。
