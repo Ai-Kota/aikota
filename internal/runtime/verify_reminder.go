@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
-	"github.com/Ai-Kota/aikota/internal/verify"
 )
 
 // VerifyReminderProvider nudges the model to run the project's checks after it
@@ -16,31 +15,35 @@ import (
 // does not run the checks itself — an automatic test run would fire on every
 // turn and, worse, the loop would have to decide what to do with the failure.
 // Reminding keeps the judgement with the model and the loop simple.
+//
+// When shared with PreCommitGate via VerificationState, the reminder and the
+// gate stay in sync: both see the same pending flag and only fire when the
+// project actually has discoverable checks.
 type VerifyReminderProvider struct {
+	// state is shared with PreCommitGate so both layers track the same
+	// unverified-changes signal. May be nil for legacy callers that don't need
+	// the gate.
+	state *VerificationState
 	// hasChecks is resolved once, at construction. Reminding a project with no
 	// discoverable checks would be asking for something impossible.
 	hasChecks bool
 }
 
-// NewVerifyReminderProvider returns a provider for the project at root, or nil
-// when the project declares no checks — a nil ReminderProvider is ignored by
-// the registry, so callers can register the result unconditionally.
-func NewVerifyReminderProvider(root string) *VerifyReminderProvider {
-	cmds, err := verify.Discover(root)
-	if err != nil || len(cmds) == 0 {
+// NewVerifyReminderProvider returns a provider wired to state. When the project
+// has no discoverable checks the provider stays silent (returns nil).
+func NewVerifyReminderProvider(state *VerificationState, root string) *VerifyReminderProvider {
+	if !HasChecks(root) {
 		return nil
 	}
-	return &VerifyReminderProvider{hasChecks: true}
+	return &VerifyReminderProvider{state: state, hasChecks: true}
 }
 
 // Name implements ReminderProvider.
 func (p *VerifyReminderProvider) Name() string { return "verify" }
 
-// Reminder implements ReminderProvider.
-//
-// It scans the current turn backwards and lets the most recent relevant action
-// decide: a verify call means the work has been checked, a write or edit means
-// it has not. Reaching the turn's opening user message means nothing was
+// Reminder scans the current turn backwards and lets the most recent relevant
+// action decide: a verify call means the work has been checked, a write or edit
+// means it has not. Reaching the turn's opening user message means nothing was
 // changed this turn.
 func (p *VerifyReminderProvider) Reminder(_ context.Context, msgs agentcore.MessageList) (string, bool) {
 	if p == nil || !p.hasChecks {
@@ -56,8 +59,14 @@ func (p *VerifyReminderProvider) Reminder(_ context.Context, msgs agentcore.Mess
 			for j := len(calls) - 1; j >= 0; j-- {
 				switch calls[j].Name {
 				case "verify":
+					if p.state != nil {
+						p.state.MarkVerified()
+					}
 					return "", false
 				case "write", "edit":
+					if p.state != nil {
+						p.state.MarkChanged()
+					}
 					return "You changed files this turn but have not run the project's checks.\n\n" +
 						"Call the verify tool before reporting the work as done, and fix anything it reports. " +
 						"Claiming success from reading the diff is not the same as the tests passing.", true

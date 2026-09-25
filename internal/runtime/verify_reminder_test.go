@@ -34,7 +34,7 @@ func providerForGoProject(t *testing.T) *VerifyReminderProvider {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module x\n\ngo 1.25\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	p := NewVerifyReminderProvider(root)
+	p := NewVerifyReminderProvider(nil, root)
 	if p == nil {
 		t.Fatal("a Go project must yield a provider")
 	}
@@ -119,7 +119,7 @@ func TestVerifyReminderOnlyWithinTheCurrentTurn(t *testing.T) {
 // TestVerifyReminderNilWithoutChecks: a project that declares no checks cannot
 // be verified, so nudging would ask for the impossible.
 func TestVerifyReminderNilWithoutChecks(t *testing.T) {
-	if p := NewVerifyReminderProvider(t.TempDir()); p != nil {
+	if p := NewVerifyReminderProvider(nil, t.TempDir()); p != nil {
 		t.Error("a project with no checks should yield no provider")
 	}
 	// The nil provider must also be safe to call, since callers register the

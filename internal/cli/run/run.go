@@ -288,6 +288,10 @@ type ToolOpts struct {
 	// candidate-probe chain (Git Bash install tree → PATH bash → wsl →
 	// powershell → cmd) to pick a healthy one.
 	Shell string
+	// VerificationState, when non-nil, tracks unverified changes across the run.
+	// WriteTool/EditTool mark it dirty; VerifyTool clears it. PreCommitGate (if
+	// wired into BeforeToolCall) blocks git commit/push while pending=true.
+	VerificationState *runtime.VerificationState
 }
 
 // BuiltinToolsExcept returns the default builtin tool set (BuiltinTools) with
@@ -360,7 +364,8 @@ func TodoReminders(tools []agentcore.AgentTool) *runtime.ReminderRegistry {
 			// The provider derives its root from the tool, so registering a
 			// verify tool is what turns verification into a loop. A project
 			// with no discoverable checks yields nil and stays unreminded.
-			if p := runtime.NewVerifyReminderProvider(tool.Root); p != nil {
+			// VerificationState is passed separately (see WireVerificationState).
+			if p := runtime.NewVerifyReminderProvider(nil, tool.Root); p != nil {
 				providers = append(providers, p)
 			}
 		}
