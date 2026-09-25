@@ -3,6 +3,8 @@
   "contextTokens": 96000,
   "contextUtilization": 0.75,
   "contextWindow": 128000,
+  "inputTokens": 45000,
+  "outputTokens": 12000,
   "toolDurationsMs": {
     "bash": {
       "count": 4,

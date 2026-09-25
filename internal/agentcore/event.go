@@ -166,7 +166,8 @@ type ToolTiming struct {
 //     (TruncationCount),
 //   - how many times the context was compacted (CompactionCount),
 //   - the latest context-utilization ratio (ContextUtilization = used tokens /
-//     ContextWindow) and the raw numbers behind it.
+//     ContextWindow) and the raw numbers behind it,
+//   - accumulated token usage from all turns (InputTokens, OutputTokens).
 type TelemetryEvent struct {
 	// Turns is the number of turns (turn_start events) the run executed.
 	Turns int
@@ -184,6 +185,10 @@ type TelemetryEvent struct {
 	ContextTokens int
 	// ContextWindow is the model's total context-token budget (0 when unknown).
 	ContextWindow int
+	// InputTokens is the cumulative input tokens across all turns.
+	InputTokens int
+	// OutputTokens is the cumulative output tokens across all turns.
+	OutputTokens int
 }
 
 func (AgentStartEvent) isAgentEvent()          {}

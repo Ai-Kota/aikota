@@ -489,6 +489,14 @@ func writeCompactionCheckpoint(ctx context.Context, msgs agentcore.MessageList, 
 		fmt.Fprintf(os.Stderr, "aikota: checkpoint: build for session %s: %v\n", cfg.SessionID, err)
 		return
 	}
+	// Carry forward the compaction's file-operation metadata so a later rebuild
+	// can present "which files changed in the collapsed prefix" to the model.
+	if len(res.Details.ModifiedFiles) > 0 || len(res.Details.ReadFiles) > 0 {
+		cp.CompactionDetails = &CompactionDetailsInCheckpoint{
+			ModifiedFiles: res.Details.ModifiedFiles,
+			ReadFiles:     res.Details.ReadFiles,
+		}
+	}
 	if err := WriteCheckpoint(cfg.SessionID, cfg.MemoryRoot, cp); err != nil {
 		fmt.Fprintf(os.Stderr, "aikota: checkpoint: write for session %s: %v\n", cfg.SessionID, err)
 	}

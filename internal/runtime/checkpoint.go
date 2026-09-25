@@ -29,6 +29,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// CompactionDetailsInCheckpoint carries the file-operation metadata from the
+// compaction that produced this checkpoint. Storing it here means a later
+// rebuild can present "which files changed in the collapsed prefix" to the
+// model or to the user, restoring context that would otherwise be lost.
+type CompactionDetailsInCheckpoint struct {
+	ModifiedFiles []string `yaml:"modifiedFiles,omitempty"`
+	ReadFiles     []string `yaml:"readFiles,omitempty"`
+}
+
 // Checkpoint is a distilled summary of the conversation up to (and including)
 // Watermark. It is the in-memory form written to / read from checkpoint.md.
 type Checkpoint struct {
@@ -45,6 +54,10 @@ type Checkpoint struct {
 	// usually equals Watermark for a linear prefix but is recorded separately so
 	// a caller that checkpoints a non-contiguous slice still keeps an honest count.
 	CoveredMessages int
+	// CompactionDetails, when non-empty, records which files were read or modified
+	// in the collapsed prefix. Rebuilds can surface this as background context so
+	// the model knows what changed before the watermark without re-reading files.
+	CompactionDetails *CompactionDetailsInCheckpoint
 }
 
 // SummarizeFunc distills a slice of conversation messages into a single summary
@@ -67,10 +80,11 @@ type checkpointFrontmatter struct {
 // fixed to "checkpoint" (memory.TypeCheckpoint) so the memory indexer classifies
 // it correctly.
 type checkpointMetadata struct {
-	Type            string    `yaml:"type"`
-	Watermark       int       `yaml:"watermark"`
-	CreatedAt       time.Time `yaml:"createdAt"`
-	CoveredMessages int       `yaml:"coveredMessages"`
+	Type            string                       `yaml:"type"`
+	Watermark       int                          `yaml:"watermark"`
+	CreatedAt       time.Time                    `yaml:"createdAt"`
+	CoveredMessages int                          `yaml:"coveredMessages"`
+	Details         *CompactionDetailsInCheckpoint `yaml:"compaction_details,omitempty"`
 }
 
 // checkpointType is the metadata.type value for a checkpoint memory file. It is
@@ -146,6 +160,7 @@ func renderCheckpoint(cp Checkpoint) ([]byte, error) {
 			Watermark:       cp.Watermark,
 			CreatedAt:       cp.CreatedAt.UTC(),
 			CoveredMessages: cp.CoveredMessages,
+			Details:         cp.CompactionDetails,
 		},
 	}
 	fmBytes, err := yaml.Marshal(fm)
@@ -188,6 +203,7 @@ func LoadCheckpoint(sessionID, memoryRoot string) (*Checkpoint, bool, error) {
 		Summary:         string(bytes.TrimLeft(body, "\r\n")),
 		CreatedAt:       fm.Metadata.CreatedAt.UTC(),
 		CoveredMessages: fm.Metadata.CoveredMessages,
+		CompactionDetails: fm.Metadata.Details,
 	}
 	return cp, true, nil
 }

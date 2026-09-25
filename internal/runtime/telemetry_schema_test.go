@@ -26,6 +26,8 @@ var goldenEvent = agentcore.TelemetryEvent{
 	ContextTokens:      96_000,
 	ContextWindow:      128_000,
 	ContextUtilization: 0.75,
+	InputTokens:        45_000,
+	OutputTokens:       12_000,
 	ToolDurationsMs: map[string]agentcore.ToolTiming{
 		"bash": {Count: 4, TotalMs: 1230},
 		"read": {Count: 12, TotalMs: 87},

@@ -42,6 +42,10 @@ type telemetry struct {
 	contextTokens int
 	contextWindow int
 
+	// inputTokens / outputTokens accumulate token usage across all turns.
+	inputTokens  int
+	outputTokens int
+
 	// now is the clock, injectable for deterministic tests. Defaults to
 	// time.Now.
 	now func() time.Time
@@ -86,6 +90,11 @@ func (t *telemetry) observe(ev agentcore.AgentEvent) {
 	case agentcore.TurnEndEvent:
 		if e.Message.StopReason == agentcore.StopReasonLength {
 			t.truncationCount++
+		}
+		// Accumulate token usage from assistant message
+		if e.Message.Usage != nil {
+			t.inputTokens += e.Message.Usage.InputTokens
+			t.outputTokens += e.Message.Usage.OutputTokens
 		}
 	case agentcore.CompactionEvent:
 		// Count only successful compactions; a failed one (ErrorMessage set) left
@@ -133,5 +142,7 @@ func (t *telemetry) summary() agentcore.TelemetryEvent {
 		ContextUtilization: utilization,
 		ContextTokens:      t.contextTokens,
 		ContextWindow:      t.contextWindow,
+		InputTokens:        t.inputTokens,
+		OutputTokens:       t.outputTokens,
 	}
 }

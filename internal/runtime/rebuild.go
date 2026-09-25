@@ -19,6 +19,7 @@ package runtime
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"github.com/Ai-Kota/aikota/internal/compaction"
@@ -138,6 +139,10 @@ func RebuildFromCheckpoint(
 // carrying cp.Summary, and the tail from the (clamped) watermark on is preserved
 // verbatim. It reuses compaction.CompactionResult.RebuildContext so the summary
 // message is shaped exactly like a compaction checkpoint.
+//
+// If the checkpoint carries CompactionDetails, an additional reminder message
+// is injected after the summary so the model knows which files changed in the
+// collapsed prefix — restoring context that would otherwise be lost.
 func rebuildFromLoadedCheckpoint(msgs agentcore.MessageList, cp *Checkpoint, tokensBefore int, now int64) *RebuildResult {
 	w := cp.Watermark
 	if w < 0 {
@@ -152,6 +157,34 @@ func rebuildFromLoadedCheckpoint(msgs agentcore.MessageList, cp *Checkpoint, tok
 		TokensBefore:   tokensBefore,
 	}
 	rebuilt := res.RebuildContext(msgs, now)
+
+	// If the checkpoint carried CompactionDetails, inject a reminder so the
+	// model knows which files changed before the watermark.
+	if cp.CompactionDetails != nil {
+		d := cp.CompactionDetails
+		var parts []string
+		if len(d.ModifiedFiles) > 0 {
+			parts = append(parts, "Modified files in the collapsed prefix: "+strings.Join(d.ModifiedFiles, ", "))
+		}
+		if len(d.ReadFiles) > 0 {
+			parts = append(parts, "Read-only files in the collapsed prefix: "+strings.Join(d.ReadFiles, ", "))
+		}
+		if len(parts) > 0 {
+			reminder := agentcore.UserMessage{
+				RoleField: agentcore.RoleUser,
+				Content: agentcore.ContentList{
+					agentcore.NewTextContent("Background context from the collapsed prefix:\n" + strings.Join(parts, "\n")),
+				},
+			}
+			// Insert right after the summary message (index 0), before the retained tail.
+			newMsgs := make(agentcore.MessageList, 0, len(rebuilt)+1)
+			newMsgs = append(newMsgs, rebuilt[0])
+			newMsgs = append(newMsgs, reminder)
+			newMsgs = append(newMsgs, rebuilt[1:]...)
+			rebuilt = newMsgs
+		}
+	}
+
 	kept := len(rebuilt) - 1
 	return &RebuildResult{
 		Messages:        rebuilt,
