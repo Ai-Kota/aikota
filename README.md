@@ -841,6 +841,54 @@ git push origin v0.2.0
 
 > 火山方舟（`volcengine`）部分模型需以「推理接入点 ID（endpoint id）」而非模型名调用，此时用 `-m <endpoint-id>` 指定即可；本仓库预置的 `doubao-seed-1-6` 走模型名方式。
 
+### 中国 Provider 快速配置
+
+aikota 已内置以下中国 Provider，开箱即用（只需设置对应环境变量或 config.toml）：
+
+| Provider | 模型示例 | 环境变量 | base_url | 备注 |
+|---|---|---|---|---|
+| `deepseek` | deepseek-chat / deepseek-coder | `DEEPSEEK_API_KEY` | `https://api.deepseek.com` | OpenAI 协议，`--protocol openai` |
+| `zai` | glm-4.7 / glm-5.3-flash | `ZAI_API_KEY` | `https://api.z.ai/api/coding/paas/v4` | 智谱 GLM，OpenAI 协议 |
+| `zai-coding-cn` | glm-4.7 | `ZAI_CODING_CN_API_KEY` | `https://open.bigmodel.cn/api/coding/paas/v4` | 智谱国内端点 |
+| `moonshotai` | kimi-k2.6 / kimi-k3 | `MOONSHOT_API_KEY` | `https://api.moonshot.ai/v1` | Kimi，OpenAI 协议 |
+| `moonshotai-cn` | kimi-k2.6 | `MOONSHOT_API_KEY` | `https://api.moonshot.cn/v1` | Kimi 国内端点 |
+| `qianfan` | ernie-4.5-turbo-32k | `QIANFAN_API_KEY` | `https://qianfan.baidubce.com/v2` | 百度千帆 ERNIE |
+| `volcengine` | doubao-seed-1-6 | `ARK_API_KEY` | `https://ark.cn-beijing.volces.com/api/v3` | 字节跳动豆包，endpoint id 模式见上 |
+| `dashscope` | qwen-max | `DASHSCOPE_API_KEY` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 阿里通义千问 |
+| `hunyuan` | hunyuan-turbos-latest | `HUNYUAN_API_KEY` | `https://api.hunyuan.cloud.tencent.com/v1` | 腾讯混元 |
+| `kimi-coding` | kimi-coder-2.5 | `KIMI_API_KEY` | `https://api.kimi.com/coding` | 月之暗面 Coding 专用端点 |
+| `minimax` | MiniMax-M2.7 | `MINIMAX_API_KEY` | `https://api.minimax.io/anthropic` | MiniMax，**Anthropic 协议** |
+| `minimax-cn` | MiniMax-M2.7 | `MINIMAX_CN_API_KEY` | `https://api.minimaxi.com/anthropic` | MiniMax 国内端点 |
+
+**通用配置示例**（`~/.config/aikota/config.toml`）：
+
+```toml
+# DeepSeek（最常用）
+model = "deepseek-v4-flash"
+# api_key = "sk-xxx"                    # 或设 DEEPSEEK_API_KEY 环境变量
+
+# 智谱 GLM
+# model = "glm-4.7"
+# api_key = "zai-xxx"                   # 或设 ZAI_API_KEY 环境变量
+
+# 阿里通义千问
+# model = "qwen-max"
+# api_key = "sk-xxx"                    # 或设 DASHSCOPE_API_KEY 环境变量
+
+# 百度千帆 ERNIE
+# model = "ernie-4.5-turbo-32k"
+# api_key = "baidu-xxx"                 # 或设 QIANFAN_API_KEY 环境变量
+
+# 腾讯混元
+# model = "hunyuan-turbos-latest"
+# api_key = "tencent-xxx"               # 或设 HUNYUAN_API_KEY 环境变量
+```
+
+**常见坑**：
+- **DeepSeek 用 Anthropic 协议**：`--provider deepseek --protocol anthropic --base-url https://api.deepseek.com/anthropic/v1`（注意末尾带 `/v1`，否则 404）
+- **火山方舟 endpoint id**：`aikota -p "总结这个文件" -m arn:aws:bedrock:us-east-1:xxx:custom-model/yyy`
+- **环境变量优先级**：`--api-key` > `<PROVIDER>_API_KEY` > config.toml `api_key`
+
 ---
 
 ## 安全说明
