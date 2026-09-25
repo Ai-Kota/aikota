@@ -45,6 +45,9 @@ type TelemetrySummary struct {
 	ContextUtilization float64                      `json:"context_utilization"`
 	InputTokens        int                          `json:"input_tokens"`
 	OutputTokens       int                          `json:"output_tokens"`
+	LastErrorType      string                       `json:"last_error_type,omitempty"`
+	LastErrorMsg       string                       `json:"last_error_msg,omitempty"`
+	ToolErrorCount     int                          `json:"tool_error_count,omitempty"`
 	ToolDurations      map[string]ToolTimingSummary `json:"tool_durations_ms"`
 }
 
@@ -66,6 +69,9 @@ func TelemetrySummaryFromEvent(e agentcore.TelemetryEvent) TelemetrySummary {
 		ContextUtilization: e.ContextUtilization,
 		InputTokens:        e.InputTokens,
 		OutputTokens:       e.OutputTokens,
+		LastErrorType:      e.LastErrorType,
+		LastErrorMsg:       e.LastErrorMsg,
+		ToolErrorCount:     e.ToolErrorCount,
 		ToolDurations:      tools,
 	}
 }

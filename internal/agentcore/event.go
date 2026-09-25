@@ -189,6 +189,19 @@ type TelemetryEvent struct {
 	InputTokens int
 	// OutputTokens is the cumulative output tokens across all turns.
 	OutputTokens int
+	// LastErrorType categorizes the most recent provider/tool failure:
+	//   "api"     — provider returned an error response (4xx/5xx, malformed body)
+	//   "auth"    — authentication / authorization failure (invalid key, expired token)
+	//   "timeout" — request exceeded the configured deadline
+	//   "network" — connection-level failure (DNS, TLS, refused)
+	//   "internal"— unexpected provider behaviour (missing required field, etc.)
+	// Empty when no error has been observed this run.
+	LastErrorType string
+	// LastErrorMsg carries the diagnostic text for the most recent error event.
+	// It is the raw provider/tool message — opaque to the caller but human-readable.
+	LastErrorMsg string
+	// ToolErrorCount is how many tool executions terminated with IsError=true.
+	ToolErrorCount int
 }
 
 func (AgentStartEvent) isAgentEvent()          {}

@@ -38,6 +38,12 @@ type cumulativeTelemetry struct {
 	inputTokens int
 	// outputTokens is the total output tokens generated across all runs.
 	outputTokens int
+	// lastErrorType is the error type from the most recent run.
+	lastErrorType string
+	// lastErrorMsg is the error message from the most recent run.
+	lastErrorMsg string
+	// toolErrorCount is the total tool execution errors across all runs.
+	toolErrorCount int
 }
 
 // NewTelemetryHolder creates a new, empty TelemetryHolder with no telemetry yet.
@@ -77,6 +83,13 @@ func (h *TelemetryHolder) Fold(ev agentcore.TelemetryEvent) {
 	// Accumulate token usage.
 	h.cumulative.inputTokens += ev.InputTokens
 	h.cumulative.outputTokens += ev.OutputTokens
+
+	// Track last error (overwrite each run with latest).
+	if ev.LastErrorType != "" {
+		h.cumulative.lastErrorType = ev.LastErrorType
+		h.cumulative.lastErrorMsg = ev.LastErrorMsg
+	}
+	h.cumulative.toolErrorCount += ev.ToolErrorCount
 
 	// Sum the per-tool timings.
 	for name, timing := range ev.ToolDurationsMs {
@@ -150,4 +163,21 @@ func (h *TelemetryHolder) CumulativeInputTokens() int {
 // CumulativeOutputTokens returns the total output tokens across all runs.
 func (h *TelemetryHolder) CumulativeOutputTokens() int {
 	return h.cumulative.outputTokens
+}
+
+// LastErrorType returns the last observed provider error type, or "" when no
+// error has been seen yet.
+func (h *TelemetryHolder) LastErrorType() string {
+	return h.cumulative.lastErrorType
+}
+
+// LastErrorMsg returns the diagnostic text for the last observed error, or ""
+// when no error has been seen yet.
+func (h *TelemetryHolder) LastErrorMsg() string {
+	return h.cumulative.lastErrorMsg
+}
+
+// CumulativeToolErrorCount returns the total tool execution errors across all runs.
+func (h *TelemetryHolder) CumulativeToolErrorCount() int {
+	return h.cumulative.toolErrorCount
 }

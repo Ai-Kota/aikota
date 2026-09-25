@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +46,16 @@ type telemetry struct {
 	// inputTokens / outputTokens accumulate token usage across all turns.
 	inputTokens  int
 	outputTokens int
+
+	// lastErrorType categorizes the most recent assistant failure observed this
+	// run (StopReasonError/Aborted). Values: "api", "auth", "timeout", "network",
+	// "internal", or "" when none. Set from TurnEndEvent.
+	lastErrorType string
+	// lastErrorMsg carries the provider/tool diagnostic text for the most recent
+	// error. Set from TurnEndEvent.ErrorMessage.
+	lastErrorMsg string
+	// toolErrorCount is how many tool executions terminated with IsError=true.
+	toolErrorCount int
 
 	// now is the clock, injectable for deterministic tests. Defaults to
 	// time.Now.
@@ -87,6 +98,9 @@ func (t *telemetry) observe(ev agentcore.AgentEvent) {
 		agg.Count++
 		agg.TotalMs += elapsed
 		t.toolTimings[e.ToolName] = agg
+		if e.IsError {
+			t.toolErrorCount++
+		}
 	case agentcore.TurnEndEvent:
 		if e.Message.StopReason == agentcore.StopReasonLength {
 			t.truncationCount++
@@ -95,6 +109,11 @@ func (t *telemetry) observe(ev agentcore.AgentEvent) {
 		if e.Message.Usage != nil {
 			t.inputTokens += e.Message.Usage.InputTokens
 			t.outputTokens += e.Message.Usage.OutputTokens
+		}
+		// Track last provider error for diagnostics.
+		if e.Message.StopReason == agentcore.StopReasonError && e.Message.ErrorMessage != "" {
+			t.lastErrorType = classifyProviderError(e.Message.ErrorMessage)
+			t.lastErrorMsg = e.Message.ErrorMessage
 		}
 	case agentcore.CompactionEvent:
 		// Count only successful compactions; a failed one (ErrorMessage set) left
@@ -144,5 +163,45 @@ func (t *telemetry) summary() agentcore.TelemetryEvent {
 		ContextWindow:      t.contextWindow,
 		InputTokens:        t.inputTokens,
 		OutputTokens:       t.outputTokens,
+		LastErrorType:      t.lastErrorType,
+		LastErrorMsg:       t.lastErrorMsg,
+		ToolErrorCount:     t.toolErrorCount,
+	}
+}
+
+// classifyProviderError categorizes an error message string into one of the
+// recognized failure modes. It looks for keyword substrings in a best-effort
+// heuristic — the text itself may be opaque to the caller, so this is a
+// diagnostic aid, not a precision classifier. Empty string on unrecognized
+// patterns.
+func classifyProviderError(msg string) string {
+	lower := strings.ToLower(msg)
+	switch {
+	case strings.Contains(lower, "401") || strings.Contains(lower, "403") ||
+		strings.Contains(lower, "unauthorized") || strings.Contains(lower, "forbidden") ||
+		strings.Contains(lower, "invalid.*key") || strings.Contains(lower, "expired") ||
+		strings.Contains(lower, "token") && strings.Contains(lower, "expir"):
+		return "auth"
+	case strings.Contains(lower, "429") || strings.Contains(lower, "rate.?limit") ||
+		strings.Contains(lower, "too many request") || strings.Contains(lower, "over quota"):
+		return "rate_limit"
+	case strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline") ||
+		strings.Contains(lower, "timed out") || strings.Contains(lower, "i/o timeout"):
+		return "timeout"
+	case strings.Contains(lower, "connection refused") || strings.Contains(lower, "connection reset") ||
+		strings.Contains(lower, "network") || strings.Contains(lower, "dns") ||
+		strings.Contains(lower, "tls.") || strings.Contains(lower, "ssl.") ||
+		strings.Contains(lower, "could not resolve"):
+		return "network"
+	case strings.Contains(lower, "400") || strings.Contains(lower, "422") ||
+		strings.Contains(lower, "invalid request") || strings.Contains(lower, "schema") ||
+		strings.Contains(lower, "malformed") || strings.Contains(lower, "bad request"):
+		return "api"
+	case strings.Contains(lower, "500") || strings.Contains(lower, "502") ||
+		strings.Contains(lower, "503") || strings.Contains(lower, "504") ||
+		strings.Contains(lower, "internal server") || strings.Contains(lower, "service unavailable"):
+		return "provider"
+	default:
+		return "unknown"
 	}
 }

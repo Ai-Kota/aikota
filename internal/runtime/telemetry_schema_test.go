@@ -28,6 +28,9 @@ var goldenEvent = agentcore.TelemetryEvent{
 	ContextUtilization: 0.75,
 	InputTokens:        45_000,
 	OutputTokens:       12_000,
+	LastErrorType:      "auth",
+	LastErrorMsg:       "provider returned 401: invalid token",
+	ToolErrorCount:     2,
 	ToolDurationsMs: map[string]agentcore.ToolTiming{
 		"bash": {Count: 4, TotalMs: 1230},
 		"read": {Count: 12, TotalMs: 87},

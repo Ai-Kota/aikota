@@ -8,6 +8,9 @@
   "context_utilization": 0.75,
   "input_tokens": 45000,
   "output_tokens": 12000,
+  "last_error_type": "auth",
+  "last_error_msg": "provider returned 401: invalid token",
+  "tool_error_count": 2,
   "tool_durations_ms": {
     "bash": {
       "count": 4,

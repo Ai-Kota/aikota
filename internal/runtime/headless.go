@@ -270,6 +270,9 @@ func eventEnvelope(ev agentcore.AgentEvent) map[string]any {
 		env["contextWindow"] = e.ContextWindow
 		env["inputTokens"] = e.InputTokens
 		env["outputTokens"] = e.OutputTokens
+		env["lastErrorType"] = e.LastErrorType
+		env["lastErrorMsg"] = e.LastErrorMsg
+		env["toolErrorCount"] = e.ToolErrorCount
 		tools := make(map[string]map[string]any, len(e.ToolDurationsMs))
 		for name, t := range e.ToolDurationsMs {
 			tools[name] = map[string]any{"count": t.Count, "totalMs": t.TotalMs}

@@ -4,6 +4,8 @@
   "contextUtilization": 0.75,
   "contextWindow": 128000,
   "inputTokens": 45000,
+  "lastErrorMsg": "provider returned 401: invalid token",
+  "lastErrorType": "auth",
   "outputTokens": 12000,
   "toolDurationsMs": {
     "bash": {
@@ -15,6 +17,7 @@
       "totalMs": 87
     }
   },
+  "toolErrorCount": 2,
   "truncationCount": 1,
   "turns": 7,
   "type": "telemetry"
