@@ -254,6 +254,8 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 		holder.CumulativeCompactionCount(),
 		holder.CumulativeContextUtilization(),
 		holder.CumulativeToolDurations(),
+		holder.CumulativeInputTokens(),
+		holder.CumulativeOutputTokens(),
 	)
 	if last := holder.Last(); last != nil {
 		printTelemetryBlock(out, color, "last run:",
@@ -262,6 +264,8 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 			last.CompactionCount,
 			last.ContextUtilization,
 			last.ToolDurationsMs,
+			last.InputTokens,
+			last.OutputTokens,
 		)
 	} else {
 		fmt.Fprintf(out, "  %s %s\n", ui.Colorize(color, ui.Dim, "last run:"), ui.Colorize(color, ui.Dim, "no telemetry yet"))
@@ -269,12 +273,13 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 }
 
 // printTelemetryBlock renders one telemetry sub-block (cumulative or last run).
-func printTelemetryBlock(out io.Writer, color bool, label string, turns, trunc, compact int, util float64, tools map[string]agentcore.ToolTiming) {
+func printTelemetryBlock(out io.Writer, color bool, label string, turns, trunc, compact int, util float64, tools map[string]agentcore.ToolTiming, inputTokens, outputTokens int) {
 	fmt.Fprintf(out, "  %s\n", ui.Colorize(color, ui.Cyan, label))
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "turns:"), turns)
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "truncations:"), trunc)
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "compactions:"), compact)
 	fmt.Fprintf(out, "    %s %s\n", ui.Colorize(color, ui.Dim, "utilization:"), fmt.Sprintf("%.0f%%", util*100))
+	fmt.Fprintf(out, "    %s %d %s %d\n", ui.Colorize(color, ui.Dim, "input tokens:"), inputTokens, ui.Colorize(color, ui.Dim, "output tokens:"), outputTokens)
 	if len(tools) == 0 {
 		fmt.Fprintf(out, "    %s (none)\n", ui.Colorize(color, ui.Dim, "tools:"))
 		return

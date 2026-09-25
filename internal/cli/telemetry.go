@@ -34,6 +34,10 @@ type cumulativeTelemetry struct {
 	contextTokens int
 	// contextWindow is the most recent observed context window size.
 	contextWindow int
+	// inputTokens is the total input tokens consumed across all runs.
+	inputTokens int
+	// outputTokens is the total output tokens generated across all runs.
+	outputTokens int
 }
 
 // NewTelemetryHolder creates a new, empty TelemetryHolder with no telemetry yet.
@@ -69,6 +73,10 @@ func (h *TelemetryHolder) Fold(ev agentcore.TelemetryEvent) {
 	// Update the latest context tokens and window (always use the most recent).
 	h.cumulative.contextTokens = ev.ContextTokens
 	h.cumulative.contextWindow = ev.ContextWindow
+
+	// Accumulate token usage.
+	h.cumulative.inputTokens += ev.InputTokens
+	h.cumulative.outputTokens += ev.OutputTokens
 
 	// Sum the per-tool timings.
 	for name, timing := range ev.ToolDurationsMs {
@@ -132,4 +140,14 @@ func (h *TelemetryHolder) CumulativeContextUtilization() float64 {
 		return 0
 	}
 	return float64(h.cumulative.contextTokens) / float64(h.cumulative.contextWindow)
+}
+
+// CumulativeInputTokens returns the total input tokens across all runs.
+func (h *TelemetryHolder) CumulativeInputTokens() int {
+	return h.cumulative.inputTokens
+}
+
+// CumulativeOutputTokens returns the total output tokens across all runs.
+func (h *TelemetryHolder) CumulativeOutputTokens() int {
+	return h.cumulative.outputTokens
 }
