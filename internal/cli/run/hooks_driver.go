@@ -44,7 +44,9 @@ func InstallDriverHooks(ctx context.Context, cfg *runtime.RunConfig, set hooks.H
 	}
 	DispatchSessionStart(ctx, d, cfg, deps, source)
 	n := hooks.NewHookNotifier(d, deps.SessionID, deps.ProjectDir)
-	return d, chainEvent(onEvent, n.Handle)
+	return d, chainEvent(onEvent, func(ev agentcore.AgentEvent) {
+		n.Handle(ctx, ev)
+	})
 }
 
 // chainEvent composes two AgentEvent observers into one that calls prev then

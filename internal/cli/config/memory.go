@@ -164,6 +164,9 @@ func ParseThresholdFraction(s string) (float64, bool) {
 // the provider window by the consumer.
 type CompactionConfig struct {
 	MaxContext string `toml:"max_context"`
+	// CcrTtlHours sets the time-to-live for CCR cache entries in hours.
+	// Positive values enable CCR storage during compaction; non-positive disables it.
+	CcrTtlHours int `toml:"ccr_ttl_hours"`
 }
 
 // ResolveMaxContext parses the max_context string form. An empty value yields
@@ -248,6 +251,7 @@ type MemorySettings struct {
 	CheckpointReserved   IntOrString
 	CheckpointPushCaps   map[string]int
 	MaxContext           MaxContext
+	CcrTtlHours          int // >0 enables CCR cache with given TTL; 0 disables
 }
 
 // ResolveMemorySettings resolves the three nested tables into MemorySettings,
@@ -261,5 +265,6 @@ func (c FileConfig) ResolveMemorySettings() MemorySettings {
 		CheckpointReserved:   c.Checkpoint.Reserved,
 		CheckpointPushCaps:   c.Checkpoint.PushCaps,
 		MaxContext:           mc,
+		CcrTtlHours:          c.Compaction.CcrTtlHours,
 	}
 }

@@ -16,6 +16,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // MaxOutputBytes caps the bytes captured from a hook's stdout and stderr each
@@ -119,9 +121,10 @@ func (r *Runner) Run(ctx context.Context, h HookConfig, input HookInput) (HookOu
 }
 
 // env builds the command environment: the current process environment plus the
-// AIKOTA_* variables derived from the input.
+// AIKOTA_* variables derived from the input. Credential-shaped variables are
+// scrubbed to prevent leakage to the hook process.
 func (r *Runner) env(input HookInput) []string {
-	env := append([]string(nil), os.Environ()...)
+	env := provider.ScrubEnv(os.Environ(), nil)
 	env = append(env,
 		"AIKOTA_SESSION_ID="+input.SessionID,
 		"AIKOTA_PROJECT_DIR="+r.ProjectDir,

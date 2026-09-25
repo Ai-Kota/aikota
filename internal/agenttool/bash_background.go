@@ -26,8 +26,13 @@ const (
 )
 
 // BashJob is a single background command: its identity, growing combined output,
-// and terminal status. All fields are guarded by mu so the running command's
+// and terminal state. All fields are guarded by mu so the running command's
 // writer, bash_output reads, and kill_bash can touch it concurrently.
+//
+// The buffer is capped at bashMaxBackgroundBufBytes to prevent unbounded memory
+// growth from a misbehaving or long-running command. When the cap is hit, new
+// bytes are dropped and a watermark is written so bash_output still reports
+// progress rather than silently losing data.
 type BashJob struct {
 	// ID is the stable handle (e.g. "bash_1") bash_output/kill_bash address.
 	ID string
@@ -38,6 +43,7 @@ type BashJob struct {
 
 	mu       sync.Mutex
 	buf      bytes.Buffer
+	capHit   bool // true once the buffer cap has been hit
 	cursor   int // bytes of buf already returned by bash_output
 	status   BashJobStatus
 	exitCode int
@@ -46,14 +52,33 @@ type BashJob struct {
 	cancel   context.CancelFunc
 }
 
+// bashMaxBackgroundBufBytes is the hard cap on a single background job's
+// stdout/stderr buffer. A dev server running for hours can emit gigabytes; we
+// keep the last 2 MiB and drop the rest so a single hung job cannot exhaust
+// the host's memory.
+const bashMaxBackgroundBufBytes = 2 * 1024 * 1024
+
 // jobWriter adapts a BashJob to io.Writer so it can be a command's Stdout/Stderr;
 // each write appends to the job's combined buffer under its lock.
 type jobWriter struct{ job *BashJob }
 
 func (w jobWriter) Write(p []byte) (int, error) {
 	w.job.mu.Lock()
+	defer w.job.mu.Unlock()
+	if w.job.capHit {
+		// Already over cap: drop everything but keep the watermark.
+		return len(p), nil
+	}
 	w.job.buf.Write(p)
-	w.job.mu.Unlock()
+	if w.job.buf.Len() > bashMaxBackgroundBufBytes {
+		// Cap hit: truncate head, keep tail, write watermark.
+		data := w.job.buf.Bytes()
+		keep := data[len(data)-bashMaxBackgroundBufBytes:]
+		w.job.buf.Reset()
+		w.job.buf.Write(keep)
+		w.job.buf.WriteString("\n[cap hit: dropped " + fmt.Sprintf("%d", len(data)-len(keep)) + " bytes, keeping tail]")
+		w.job.capHit = true
+	}
 	return len(p), nil
 }
 
@@ -104,6 +129,13 @@ func (j *BashJob) snapshot() (status BashJobStatus, exitCode int, errMsg string)
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	return j.status, j.exitCode, j.errMsg
+}
+
+// capReached returns whether the buffer cap has been hit.
+func (j *BashJob) capReached() bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.capHit
 }
 
 // BashJobStore holds a session's background bash jobs. A single store is shared by

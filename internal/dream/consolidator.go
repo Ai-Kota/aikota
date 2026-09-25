@@ -134,6 +134,14 @@ func buildDistillPrompt(in ConsolidateInput) string {
 
 	b.WriteString("\n## Recent session transcripts\n\n")
 	b.WriteString(in.Transcripts)
+
+	// Include compaction summaries so the distiller can extract durable facts
+	// from historically-compressed context that would otherwise be lost.
+	if strings.TrimSpace(in.CompactionSummaries) != "" {
+		b.WriteString("\n\n## Compacted session summaries (historical context)\n\n")
+		b.WriteString(in.CompactionSummaries)
+	}
+
 	b.WriteString("\n\nReturn the JSON object described in your instructions. Extract only genuinely new, durable facts. When in doubt, return no entries.\n")
 	return b.String()
 }

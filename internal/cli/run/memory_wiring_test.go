@@ -18,12 +18,12 @@ import (
 // a disabled store is not an error, so the caller degrades to file-based
 // auto-memory without logging a failure.
 func TestOpenMemoryStoreDisabled(t *testing.T) {
-	store, err := OpenMemoryStore(false)
+	store, err := OpenMemoryStore(false, 0)
 	if err != nil {
-		t.Fatalf("OpenMemoryStore(false) err = %v, want nil", err)
+		t.Fatalf("OpenMemoryStore(false, 0) err = %v, want nil", err)
 	}
 	if store != nil {
-		t.Fatalf("OpenMemoryStore(false) store = %v, want nil", store)
+		t.Fatalf("OpenMemoryStore(false, 0) store = %v, want nil", store)
 	}
 }
 
@@ -41,7 +41,7 @@ func TestMemoryDirHonorsAIKOTAHome(t *testing.T) {
 // memory_search tool's Store.Root() when one is wired into the tool set.
 func TestMemoryRootFromToolsPresent(t *testing.T) {
 	root := t.TempDir()
-	store, err := memory.Open(filepath.Join(root, "index.db"), root, "")
+	store, err := memory.Open(filepath.Join(root, "index.db"), root, "", 72)
 	if err != nil {
 		t.Fatalf("memory.Open: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestMemoryRootFromToolsAbsent(t *testing.T) {
 // provider-bearing tool is present.
 func TestTodoRemindersRegistersMemoryProvider(t *testing.T) {
 	root := t.TempDir()
-	store, err := memory.Open(filepath.Join(root, "index.db"), root, "")
+	store, err := memory.Open(filepath.Join(root, "index.db"), root, "", 72)
 	if err != nil {
 		t.Fatalf("memory.Open: %v", err)
 	}

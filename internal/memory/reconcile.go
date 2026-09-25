@@ -156,6 +156,12 @@ func (s *Store) Reconcile() (Result, error) {
 		}
 	}
 
+	// Clean up expired CCR entries to free storage space.
+	if _, err := s.CleanupCCR(); err != nil {
+		// Non-fatal: log warning but continue with reconciliation result.
+		fmt.Fprintf(os.Stderr, "memory: ccr cleanup warning: %v\n", err)
+	}
+
 	return res, nil
 }
 

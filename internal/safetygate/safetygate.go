@@ -114,8 +114,11 @@ var commandRules = []commandRule{
 		name: "rm-root",
 		// Recursive AND force, however the flags are spelled: combined (-rf,
 		// -fr, -Rf) or split into separate tokens (-r -f, -f -r). Case is
-		// ignored so -R counts as recursive.
-		match:  regexp.MustCompile(`(?i)` + cmdPos + `rm\s+(?:-[a-z]*(?:rf|fr)[a-z]*|-[a-z]*r[a-z]*\s+-\S*f\S*|-[a-z]*f[a-z]*\s+-\S*r\S*)\s+(?:-\S+\s+)*(?:/|/\*|~|~/\*|\$HOME/?|\$\{HOME\}/?|/home|/Users)(?:\s|$|[;&|])`),
+		// ignored so -R counts as recursive. Long flags (--recursive, --force,
+		// --no-preserve-root) are also supported to prevent bypass via GNU
+		// style invocations. The pattern matches any combination of recursive
+		// and force flags (short or long) followed by a target path.
+		match:  regexp.MustCompile(`(?i)` + cmdPos + `rm\s+(?:(?:-[a-zA-Z]*[rf][a-zA-Z]*|-[a-zA-Z]*r[a-z]*|-[a-zA-Z]*f[a-z]*|--(?:recursive|no-preserve-root|force)\b)\s+)*(?:/|/\*|~(?:\S*)?|\$HOME/?|\$\{HOME\}/?|/home|/Users)(?:\s|$|[;&|])`),
 		reason: commandBlockPrefix + "refusing a recursive force-delete aimed at a filesystem root or home directory. Delete a specific subdirectory instead.",
 	},
 	{

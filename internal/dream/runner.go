@@ -42,6 +42,11 @@ type ConsolidateInput struct {
 	// string means there is nothing to distill (no matching sessions), so the
 	// Consolidator skips the distill call entirely (SPEC §5.5 no-op).
 	Transcripts string `json:"transcripts,omitempty"`
+	// CompactionSummaries carries checkpoint summaries from recently-compacted
+	// sessions. This bridges the compaction and dream systems so compressed
+	// context can be distilled into durable memory entries.
+	// Format: one line per session as "SESSION_ID|SUMMARY".
+	CompactionSummaries string `json:"compaction_summaries,omitempty"`
 }
 
 // NewEntry is a distilled memory file the Consolidator wants created. Path must
@@ -174,12 +179,16 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) (Report, error) {
 	}
 	state, _ := LoadState(memoryRoot)
 	transcripts := collectTranscripts(src, state, opts.ProjectDir, opts.RecentSessions, defaultTranscriptBudget)
+	// Collect checkpoint summaries from compacted sessions. These provide
+	// historical context that would otherwise be lost after compaction.
+	compactionSummaries := collectCompactionSummaries(memoryRoot)
 
 	cres, err := cons.Consolidate(ctx, ConsolidateInput{
-		Plan:        plan,
-		MemoryRoot:  memoryRoot,
-		ProjectDir:  opts.ProjectDir,
-		Transcripts: transcripts,
+		Plan:                plan,
+		MemoryRoot:          memoryRoot,
+		ProjectDir:          opts.ProjectDir,
+		Transcripts:         transcripts,
+		CompactionSummaries: compactionSummaries,
 	})
 	if err != nil {
 		// The runner surfaces the error; the parent/scheduler (node #8) maps a
@@ -217,7 +226,7 @@ func (r *Runner) Run(ctx context.Context, opts RunOptions) (Report, error) {
 	//
 	// Open the store only here: a dry-run or a lock skip must not create index.db
 	// (SPEC §5.5). The store is needed solely for the post-write Reconcile.
-	store, err := memory.Open(filepath.Join(memoryRoot, "index.db"), memoryRoot, "")
+	store, err := memory.Open(filepath.Join(memoryRoot, "index.db"), memoryRoot, "", 72)
 	if err != nil {
 		return Report{}, fmt.Errorf("dream: open memory store: %w", err)
 	}
@@ -299,6 +308,50 @@ func ResolveMemoryRoot() string {
 		dir = filepath.Join(home, ".aikota")
 	}
 	return filepath.Join(dir, "memory")
+}
+
+// collectCompactionSummaries scans <memoryRoot>/sessions/*/checkpoint.md files
+// and returns a string with one line per checkpoint in "SESSION_ID|SUMMARY"
+// format. The SUMMARY is the Markdown body (after YAML frontmatter). Errors
+// are silently skipped so a single corrupt checkpoint does not abort the run.
+// This bridges the compaction system to the dream distiller: when a session
+// has been compacted, its historical context lives in checkpoint.md and can
+// be distilled into durable memory alongside regular session transcripts.
+func collectCompactionSummaries(memoryRoot string) string {
+	sessionsDir := filepath.Join(memoryRoot, "sessions")
+	entries, err := os.ReadDir(sessionsDir)
+	if err != nil {
+		return ""
+	}
+	var b strings.Builder
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		cpPath := filepath.Join(sessionsDir, entry.Name(), "checkpoint.md")
+		data, err := os.ReadFile(cpPath)
+		if err != nil {
+			continue
+		}
+		// Strip YAML frontmatter (---...---) to get the summary body.
+		content := string(data)
+		start := strings.Index(content, "---\n")
+		if start >= 0 {
+			end := strings.Index(content[start+4:], "---\n")
+			if end >= 0 {
+				content = content[start+4+end+4:]
+			}
+		}
+		content = strings.TrimSpace(content)
+		if content == "" {
+			continue
+		}
+		b.WriteString(entry.Name())
+		b.WriteString("|")
+		b.WriteString(content)
+		b.WriteByte('\n')
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // withinScope reports whether target is a write target permitted by this run's

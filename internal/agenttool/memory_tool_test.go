@@ -28,7 +28,7 @@ func newMemoryStoreWithCorpus(t *testing.T) *memory.Store {
 		"global", "user", "u1.md")
 
 	dbPath := filepath.Join(base, "sub", "memory.db")
-	st, err := memory.Open(dbPath, root, "")
+	st, err := memory.Open(dbPath, root, "", 72)
 	if err != nil {
 		t.Fatalf("memory.Open: %v", err)
 	}

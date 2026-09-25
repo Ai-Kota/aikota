@@ -20,6 +20,24 @@ func ContentToText(list ContentList) string {
 	return b.String()
 }
 
+// MessageToText flattens text blocks from any message type (user, assistant,
+// tool result) into a single string. Non-text blocks are skipped. A nil message
+// returns an empty string.
+func MessageToText(m Message) string {
+	if m == nil {
+		return ""
+	}
+	switch msg := m.(type) {
+	case UserMessage:
+		return ContentToText(msg.Content)
+	case AssistantMessage:
+		return ContentToText(msg.Content)
+	case ToolResultMessage:
+		return ContentToText(msg.Content)
+	}
+	return ""
+}
+
 // LastAssistantOf returns a pointer to the last AssistantMessage in msgs, or nil.
 func LastAssistantOf(msgs []AgentMessage) *AssistantMessage {
 	for i := len(msgs) - 1; i >= 0; i-- {

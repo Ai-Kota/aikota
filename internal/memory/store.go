@@ -23,6 +23,7 @@ type Store struct {
 	db     *sql.DB
 	root   string // memory root directory (magic layout: global/projects/sessions)
 	ccBase string // optional Claude Code base dir for the "cc" scope; "" disables
+	ccr    *CCRCache // CCR cache for storing original messages before compaction
 }
 
 // Open opens (creating if necessary) the SQLite database at dbPath and runs the
@@ -31,9 +32,9 @@ type Store struct {
 // the optional Claude Code base directory; both are retained for use by later
 // nodes and are not required to exist here.
 //
-// Calling Open twice on the same file is safe: the migration uses
-// CREATE ... IF NOT EXISTS throughout.
-func Open(dbPath, root, ccBase string) (*Store, error) {
+// ccrTtlHours, when >0, enables the CCR cache with the given TTL; otherwise
+// CCR remains disabled for this store (use OpenWithCCRTTL to customise).
+func Open(dbPath, root, ccBase string, ccrTtlHours int) (*Store, error) {
 	if dbPath == "" {
 		return nil, fmt.Errorf("memory: empty dbPath")
 	}
@@ -67,7 +68,16 @@ func Open(dbPath, root, ccBase string) (*Store, error) {
 		return nil, fmt.Errorf("memory: migrate: %w", err)
 	}
 
-	return &Store{db: db, root: root, ccBase: ccBase}, nil
+	var ccr *CCRCache
+	if ccrTtlHours > 0 {
+		ccr = NewCCRCache(db, ccrTtlHours)
+	}
+	return &Store{db: db, root: root, ccBase: ccBase, ccr: ccr}, nil
+}
+
+// OpenDefault opens the memory store with the built-in CCR TTL of 72 hours.
+func OpenDefault(dbPath, root, ccBase string) (*Store, error) {
+	return Open(dbPath, root, ccBase, 72)
 }
 
 // migrate applies the idempotent schema DDL.
@@ -134,4 +144,22 @@ func (s *Store) Close() error {
 		return nil
 	}
 	return s.db.Close()
+}
+
+// CCRCache returns the CCR cache for storing original messages before compaction.
+// Returns nil if the store is nil or CCR was not initialized.
+func (s *Store) CCRCache() *CCRCache {
+	if s == nil {
+		return nil
+	}
+	return s.ccr
+}
+
+// CleanupCCR removes expired entries from the CCR cache and returns the number of
+// deleted records. A nil store or uninitialized CCR yields zero with no error.
+func (s *Store) CleanupCCR() (int, error) {
+	if s == nil || s.ccr == nil {
+		return 0, nil
+	}
+	return s.ccr.Cleanup()
 }

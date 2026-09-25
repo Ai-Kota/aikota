@@ -27,6 +27,13 @@ const bashDefaultTimeout = 2 * time.Minute
 // bashMaxTimeout caps any requested timeout.
 const bashMaxTimeout = 10 * time.Minute
 
+// bashDefaultBackgroundTimeout is the default timeout applied to background
+// commands that do not specify timeout_ms. Without this, a background command
+// would run forever and its buffer would grow without bound. The cap is higher
+// than the foreground default (2 min) because background jobs are typically
+// dev servers or watchers expected to run for minutes, not seconds.
+const bashDefaultBackgroundTimeout = 30 * time.Minute
+
 // bashMaxOutputBytes caps how many bytes of combined stdout/stderr the bash tool
 // returns to the model. A single command can emit megabytes (build logs, a big
 // cat), which — unlike the timeout cap — would otherwise flow into context whole
@@ -401,7 +408,10 @@ func (t *BashTool) startBackground(a bashToolArgs) (agentcore.AgentToolResult, e
 		}
 		jobCtx, cancel = context.WithTimeout(context.Background(), timeout)
 	} else {
-		jobCtx, cancel = context.WithCancel(context.Background())
+		// Background commands get a generous but finite default so they don't
+		// run forever and exhaust memory. Foreground commands use
+		// bashDefaultTimeout upstream (caller path at line 312+).
+		jobCtx, cancel = context.WithTimeout(context.Background(), bashDefaultBackgroundTimeout)
 	}
 
 	shell, flag := resolveShell(t.Shell, runtime.GOOS, shellLookPath)

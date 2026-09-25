@@ -645,7 +645,12 @@ func streamRun(ctx context.Context, out io.Writer, deps replDeps, prompt string)
 	// (plugin notifier + telemetry). Nil when no hooks are configured.
 	var hookEvent func(agentcore.AgentEvent)
 	if deps.dispatcher != nil {
-		hookEvent = hooks.NewHookNotifier(deps.dispatcher, deps.hookDeps.SessionID, deps.hookDeps.ProjectDir).Handle
+		hookEvent = func(ev agentcore.AgentEvent) {
+			n := hooks.NewHookNotifier(deps.dispatcher, deps.hookDeps.SessionID, deps.hookDeps.ProjectDir)
+			if n != nil {
+				n.Handle(ctx, ev)
+			}
+		}
 	}
 	_, err = runtime.DrainStream(ctx, stream, runtime.StreamHandler{
 		OnEvent: func(ev agentcore.AgentEvent) {
@@ -1060,7 +1065,7 @@ func runManualCompact(out io.Writer, deps replDeps) {
 		scfg.APIKey = deps.creds.GetAPIKey(context.Background(), deps.live.ProviderName)
 	}
 	fmt.Fprintln(out, ui.Colorize(ui.Enabled(), ui.Dim, "Compacting conversation…"))
-	res, err := compaction.Compact(context.Background(), stream, model, msgs, settings, -1, nil, "", scfg)
+	res, err := compaction.Compact(context.Background(), stream, model, msgs, settings, -1, nil, "", scfg, nil)
 	if err != nil {
 		fmt.Fprintf(out, "compaction failed: %v (context left unchanged)\n", err)
 		return

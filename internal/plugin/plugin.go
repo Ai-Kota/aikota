@@ -10,11 +10,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"slices"
 	"time"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"github.com/Ai-Kota/aikota/internal/jsonrpc"
+	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
 // initTimeout bounds the initialize handshake so a plugin that never replies
@@ -37,10 +39,14 @@ type Plugin struct {
 // Load starts the plugin executable at path (with optional args) and performs
 // the initialize handshake. stderr, when non-nil, receives the plugin's stderr
 // for logging. The caller must Close the returned Plugin.
+//
+// The plugin process receives a scrubbed environment: credential-shaped
+// variables (API keys, tokens, etc.) are removed to prevent leakage.
 func Load(command string, args []string, stderr io.Writer) (*Plugin, error) {
 	client, err := jsonrpc.NewClient(jsonrpc.Config{
 		Command: command,
 		Args:    args,
+		Env:     provider.ScrubEnv(os.Environ(), nil),
 		Stderr:  stderr,
 	})
 	if err != nil {
@@ -191,6 +197,10 @@ func (t *pluginTool) Execute(ctx context.Context, id string, args json.RawMessag
 	}
 	if res.IsError {
 		result.Details = map[string]any{"isError": true}
+	}
+	// If the plugin returned an image, append it as an image content block.
+	if res.ImageData != nil && res.ImageData.Data != "" {
+		result.Content = append(result.Content, agentcore.NewImageContent(res.ImageData.Data, res.ImageData.MimeType))
 	}
 	return result, nil
 }

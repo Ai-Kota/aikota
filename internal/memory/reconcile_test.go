@@ -21,7 +21,7 @@ func openTempWithRoots(t *testing.T) (st *Store, root, ccBase string) {
 		t.Fatalf("mkdir ccBase: %v", err)
 	}
 	dbPath := filepath.Join(base, "sub", "memory.db")
-	st, err := Open(dbPath, root, ccBase)
+	st, err := OpenDefault(dbPath, root, ccBase)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestReconcileBothRootsNoCrossPrune(t *testing.T) {
 func TestReconcileMissingRoots(t *testing.T) {
 	base := t.TempDir()
 	dbPath := filepath.Join(base, "memory.db")
-	st, err := Open(dbPath, filepath.Join(base, "nope"), filepath.Join(base, "nocc"))
+	st, err := OpenDefault(dbPath, filepath.Join(base, "nope"), filepath.Join(base, "nocc"))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

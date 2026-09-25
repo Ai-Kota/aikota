@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +51,7 @@ func TestSessionEndReason(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			n, out := captureNotifier(t, "SessionEnd")
-			n.Handle(agentcore.AgentEndEvent{Messages: []agentcore.AgentMessage{
+			n.Handle(context.Background(), agentcore.AgentEndEvent{Messages: []agentcore.AgentMessage{
 				agentcore.AssistantMessage{RoleField: agentcore.RoleAssistant, StopReason: tc.stop},
 			}})
 			if got := readCapture(t, out); !strings.Contains(got, tc.expect) {
@@ -74,7 +75,7 @@ func TestPreCompactTrigger(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.reason, func(t *testing.T) {
 			n, out := captureNotifier(t, "PreCompact")
-			n.Handle(agentcore.CompactionEvent{Reason: tc.reason})
+			n.Handle(context.Background(), agentcore.CompactionEvent{Reason: tc.reason})
 			if got := readCapture(t, out); !strings.Contains(got, tc.expect) {
 				t.Fatalf("PreCompact trigger: want %q in %q", tc.expect, got)
 			}
@@ -85,7 +86,7 @@ func TestPreCompactTrigger(t *testing.T) {
 // TestNotification: Notify fires the Notification event carrying the message.
 func TestNotification(t *testing.T) {
 	n, out := captureNotifier(t, "Notification")
-	n.Notify("approve bash in untrusted dir?")
+	n.Notify(context.Background(), "approve bash in untrusted dir?")
 	got := readCapture(t, out)
 	if !strings.Contains(got, `"event_type":"Notification"`) || !strings.Contains(got, "approve bash in untrusted dir?") {
 		t.Fatalf("Notification payload missing message, got %q", got)
@@ -99,12 +100,12 @@ func TestNotifierNilSafe(t *testing.T) {
 		t.Fatal("nil dispatcher must yield a nil notifier")
 	}
 	var n *HookNotifier
-	n.Handle(agentcore.AgentEndEvent{})
-	n.Notify("x") // must not panic
+	n.Handle(context.Background(), agentcore.AgentEndEvent{})
+	n.Notify(context.Background(), "x") // must not panic
 
 	// A live notifier with an empty message writes nothing.
 	live, out := captureNotifier(t, "Notification")
-	live.Notify("")
+	live.Notify(context.Background(), "")
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatal("empty Notify message must not fire the hook")
 	}
@@ -114,8 +115,8 @@ func TestNotifierNilSafe(t *testing.T) {
 // mapping and must not fire any hook.
 func TestNotifierIgnoresUnmappedEvents(t *testing.T) {
 	n, out := captureNotifier(t, "SessionEnd")
-	n.Handle(agentcore.TurnStartEvent{})
-	n.Handle(agentcore.ToolExecutionStartEvent{ToolName: "bash"})
+	n.Handle(context.Background(), agentcore.TurnStartEvent{})
+	n.Handle(context.Background(), agentcore.ToolExecutionStartEvent{ToolName: "bash"})
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatal("unmapped events must not fire the SessionEnd hook")
 	}

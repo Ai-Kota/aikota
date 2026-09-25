@@ -15,7 +15,7 @@ import (
 // disabled so recall — not ranking — is what the assertion measures.
 func searchHits(t *testing.T, root, query string) map[string]bool {
 	t.Helper()
-	st, err := memory.Open(filepath.Join(root, "index.db"), root, "")
+	st, err := memory.Open(filepath.Join(root, "index.db"), root, "", 72)
 	if err != nil {
 		t.Fatalf("reopen store: %v", err)
 	}

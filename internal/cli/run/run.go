@@ -93,11 +93,12 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 	// the "fall back to file-based auto-memory" contract.
 	var memStore *memory.Store
 	if !noTools {
-		if store, err := OpenMemoryStore(memEnabled); err != nil {
+		if store, err := OpenMemoryStore(memEnabled, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "aikota: memory disabled: %v\n", err)
 		} else if store != nil {
 			memStore = store
 			tools = append(tools, &agenttool.MemorySearchTool{Store: store})
+			tools = append(tools, &agenttool.MemoryRetrieveTool{Store: store})
 		}
 	}
 	// Wire the generic task tool (US-002, #454) unless tools are disabled. It
@@ -452,7 +453,10 @@ func MemoryDir() string {
 // caller degrades to file-based auto-memory without treating the off state as a
 // failure. A genuine open failure is returned as an error for the caller to log
 // non-fatally.
-func OpenMemoryStore(memEnabled bool) (*memory.Store, error) {
+//
+// ccrTtlHours controls the CCR cache TTL: >0 enables CCR storage with the given
+// TTL, 0 disables it (legacy default: 72 hours preserved for backward compat).
+func OpenMemoryStore(memEnabled bool, ccrTtlHours int) (*memory.Store, error) {
 	if !memEnabled {
 		return nil, nil
 	}
@@ -461,7 +465,7 @@ func OpenMemoryStore(memEnabled bool) (*memory.Store, error) {
 		return nil, nil
 	}
 	dbPath := filepath.Join(root, "index.db")
-	return memory.Open(dbPath, root, "")
+	return memory.Open(dbPath, root, "", ccrTtlHours)
 }
 
 // SkillsDir returns the directory skills are loaded from. It defaults to

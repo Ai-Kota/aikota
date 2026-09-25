@@ -46,20 +46,20 @@ func NewHookNotifier(d *Dispatcher, sessionID, projectDir string) *HookNotifier 
 // Handle maps an observed event to its observer hook and fires it. Events with
 // no observer mapping (turn/message/tool events) are ignored. It is a no-op on a
 // nil notifier, so it can be chained onto OnEvent unconditionally.
-func (n *HookNotifier) Handle(ev agentcore.AgentEvent) {
+func (n *HookNotifier) Handle(ctx context.Context, ev agentcore.AgentEvent) {
 	if n == nil {
 		return
 	}
 	switch e := ev.(type) {
 	case agentcore.AgentEndEvent:
-		n.dispatch("SessionEnd", HookInput{
+		n.dispatch(ctx, "SessionEnd", HookInput{
 			EventType:  "SessionEnd",
 			SessionID:  n.sessionID,
 			ProjectDir: n.projectDir,
 			StopReason: sessionEndReason(e.Messages),
 		})
 	case agentcore.CompactionEvent:
-		n.dispatch("PreCompact", HookInput{
+		n.dispatch(ctx, "PreCompact", HookInput{
 			EventType:  "PreCompact",
 			SessionID:  n.sessionID,
 			ProjectDir: n.projectDir,
@@ -72,11 +72,11 @@ func (n *HookNotifier) Handle(ev agentcore.AgentEvent) {
 // for out-of-band prompts that are not part of the event stream, such as a trust
 // confirmation for an untrusted-directory bash/write. A no-op on a nil notifier
 // or an empty message.
-func (n *HookNotifier) Notify(message string) {
+func (n *HookNotifier) Notify(ctx context.Context, message string) {
 	if n == nil || message == "" {
 		return
 	}
-	n.dispatch("Notification", HookInput{
+	n.dispatch(ctx, "Notification", HookInput{
 		EventType:  "Notification",
 		SessionID:  n.sessionID,
 		ProjectDir: n.projectDir,
@@ -85,8 +85,9 @@ func (n *HookNotifier) Notify(message string) {
 }
 
 // dispatch fires the hooks for an observer event and discards the decision.
-func (n *HookNotifier) dispatch(event string, input HookInput) {
-	n.d.Dispatch(context.Background(), event, "", input)
+// Uses the provided ctx so hooks can be cancelled if the run is interrupted.
+func (n *HookNotifier) dispatch(ctx context.Context, event string, input HookInput) {
+	n.d.Dispatch(ctx, event, "", input)
 }
 
 // sessionEndReason derives the SessionEnd reason from the run's terminal

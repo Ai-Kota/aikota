@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/memory"
 	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
@@ -36,6 +37,10 @@ type CompactionResult struct {
 	TokensBefore int
 	// Details holds the file operations extracted from the compacted range.
 	Details CompactionDetails
+	// OriginalIDs contains the CCR cache IDs for the original text of messages
+	// that were compressed. Each ID maps to one message in [start, FirstKeptIndex).
+	// The model can use memory_retrieve to get the full original text when needed.
+	OriginalIDs []string
 }
 
 // Compact prepares and generates a compaction over msgs. It cuts at
@@ -44,6 +49,10 @@ type CompactionResult struct {
 // compaction's details when provided), and appends <read-files>/<modified-files>
 // metadata to the summary. previousSummary, when non-empty, switches to the
 // iterative update template.
+//
+// ccr, when non-nil, receives the original text of each compacted message so
+// the model can retrieve it later via memory_retrieve. Messages that are empty
+// or identical to their compressed form are skipped (optimization).
 //
 // prevCompactionIndex is the index of the last already-applied compaction point
 // (-1 when none); summarization starts just after it so each compaction only
@@ -62,6 +71,7 @@ func Compact(
 	prevDetails *CompactionDetails,
 	previousSummary string,
 	cfg provider.StreamConfig,
+	ccr *memory.CCRCache,
 ) (*CompactionResult, error) {
 	cut := FindCutPoint(msgs, settings.KeepRecentTokens)
 
@@ -96,11 +106,28 @@ func Compact(
 	}
 	summary += formatFileOperations(readFiles, modifiedFiles)
 
+	// Cache original texts for on-demand retrieval via CCR.
+	var originalIDs []string
+	if ccr != nil {
+		originalIDs = make([]string, 0, len(toSummarize))
+		for _, m := range toSummarize {
+			text := agentcore.MessageToText(m)
+			if text == "" {
+				continue
+			}
+			id, err := ccr.Store(text, summary)
+			if err == nil && id != "" {
+				originalIDs = append(originalIDs, id)
+			}
+		}
+	}
+
 	return &CompactionResult{
 		Summary:        summary,
 		FirstKeptIndex: cut.FirstKeptIndex,
 		TokensBefore:   EstimateContextTokens(msgs).Tokens,
 		Details:        CompactionDetails{ReadFiles: readFiles, ModifiedFiles: modifiedFiles},
+		OriginalIDs:    originalIDs,
 	}, nil
 }
 

@@ -256,7 +256,9 @@ func newRunSessionWithStore(store *session.Store, opts Options) (*runSession, []
 		run.DispatchSessionStart(context.Background(), d, &ssCfg, s.hookDeps, sessionStartSource(opts))
 		s.reminders = ssCfg.Reminders
 		n := hooks.NewHookNotifier(d, s.hookDeps.SessionID, s.hookDeps.ProjectDir)
-		s.onEvent = chainTUIEvent(baseOnEvent, n.Handle)
+		s.onEvent = chainTUIEvent(baseOnEvent, func(ev agentcore.AgentEvent) {
+			n.Handle(context.Background(), ev)
+		})
 	} else {
 		s.onEvent = baseOnEvent
 	}

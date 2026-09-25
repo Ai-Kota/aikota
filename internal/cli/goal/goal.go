@@ -331,7 +331,12 @@ func chainGoalEvent(host cli.Host) func(agentcore.AgentEvent) {
 		return notifier
 	}
 	deps := host.HookDeps()
-	hookEvent := hooks.NewHookNotifier(d, deps.SessionID, deps.ProjectDir).Handle
+	hookEvent := func(ev agentcore.AgentEvent) {
+		n := hooks.NewHookNotifier(d, deps.SessionID, deps.ProjectDir)
+		if n != nil {
+			n.Handle(context.Background(), ev)
+		}
+	}
 	if notifier == nil {
 		return hookEvent
 	}

@@ -10,7 +10,7 @@ func openTemp(t *testing.T) *Store {
 	t.Helper()
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "sub", "memory.db") // sub/ must be created by Open
-	st, err := Open(dbPath, dir, "")
+	st, err := OpenDefault(dbPath, dir, "")
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestOpenIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "memory.db")
 
-	st1, err := Open(dbPath, dir, "")
+	st1, err := OpenDefault(dbPath, dir, "")
 	if err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestOpenIdempotent(t *testing.T) {
 	}
 
 	// Re-open: migration must not error and existing data must survive.
-	st2, err := Open(dbPath, dir, "")
+	st2, err := OpenDefault(dbPath, dir, "")
 	if err != nil {
 		t.Fatalf("second Open (migration not idempotent?): %v", err)
 	}
@@ -164,7 +164,7 @@ func TestOpenIdempotent(t *testing.T) {
 
 // TestInMemoryOpen verifies the ":memory:" DSN works (no parent dir creation).
 func TestInMemoryOpen(t *testing.T) {
-	st, err := Open(":memory:", "", "")
+	st, err := OpenDefault(":memory:", "", "")
 	if err != nil {
 		t.Fatalf("Open in-memory: %v", err)
 	}

@@ -35,7 +35,7 @@ func TestRunMemoryEnabledCounts(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "global", "reference", "a.md"), []byte("hello"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	st, err := memory.Open(filepath.Join(base, "index.db"), root, "")
+	st, err := memory.OpenDefault(filepath.Join(base, "index.db"), root, "")
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

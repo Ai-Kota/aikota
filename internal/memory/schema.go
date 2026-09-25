@@ -63,4 +63,18 @@ CREATE TRIGGER IF NOT EXISTS memory_au AFTER UPDATE ON memory_index BEGIN
   INSERT INTO memory_fts(memory_fts, rowid, body) VALUES('delete', old.id, old.body);
   INSERT INTO memory_fts(rowid, body) VALUES (new.id, new.body);
 END;
+
+-- CCR (Compressed Content Repository) table for reversible compression.
+-- Stores original text of compacted messages for on-demand retrieval.
+CREATE TABLE IF NOT EXISTS memory_ccr (
+  id TEXT PRIMARY KEY,
+  content_hash TEXT NOT NULL,
+  original TEXT NOT NULL,
+  compressed TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  ttl_hours INTEGER NOT NULL DEFAULT 72
+);
+
+CREATE INDEX IF NOT EXISTS memory_ccr_hash_idx ON memory_ccr (content_hash);
+CREATE INDEX IF NOT EXISTS memory_ccr_created_idx ON memory_ccr (created_at);
 `

@@ -30,7 +30,7 @@ func openMemoryStore(t *testing.T, files map[string]string) *memory.Store {
 			t.Fatalf("write %q: %v", full, err)
 		}
 	}
-	st, err := memory.Open(filepath.Join(base, "memory.db"), root, "")
+	st, err := memory.Open(filepath.Join(base, "memory.db"), root, "", 72)
 	if err != nil {
 		t.Fatalf("memory.Open: %v", err)
 	}

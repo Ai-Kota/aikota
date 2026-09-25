@@ -124,6 +124,107 @@ func TestPluginLoadAndCall(t *testing.T) {
 	}
 }
 
+// imagePluginSrc declares one "screenshot" tool that returns both text and an
+// embedded image block so the plugin→aikota→agentcore path can be exercised.
+const imagePluginSrc = `package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+type req struct {
+	ID     *json.RawMessage ` + "`json:\"id\"`" + `
+	Method string           ` + "`json:\"method\"`" + `
+	Params json.RawMessage  ` + "`json:\"params\"`" + `
+}
+
+func main() {
+	sc := bufio.NewScanner(os.Stdin)
+	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+	w := bufio.NewWriter(os.Stdout)
+	for sc.Scan() {
+		var r req
+		if err := json.Unmarshal(sc.Bytes(), &r); err != nil {
+			continue
+		}
+		switch r.Method {
+		case "initialize":
+			reply(w, r.ID, json.RawMessage(` + "`" + `{"name":"img","version":"1.0","tools":[{"name":"screenshot","description":"capture screen","schema":{"type":"object"}}]}` + "`" + `))
+		case "tools/call":
+			var p struct {
+				Name      string          ` + "`json:\"name\"`" + `
+				Arguments json.RawMessage ` + "`json:\"arguments\"`" + `
+			}
+			json.Unmarshal(r.Params, &p)
+			if p.Name == "screenshot" {
+				res, _ := json.Marshal(map[string]any{
+					"content": "screen captured",
+					"image": map[string]string{
+						"data":     "iVBORw0KGgo=",
+						"mimeType": "image/png",
+					},
+				})
+				reply(w, r.ID, res)
+			}
+		case "shutdown":
+			return
+		}
+	}
+}
+
+func reply(w *bufio.Writer, id *json.RawMessage, result json.RawMessage) {
+	if id == nil {
+		return
+	}
+	out, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
+	fmt.Fprintf(w, "%s\n", out)
+	w.Flush()
+}
+`
+
+// TestPluginLoadAndCallWithImage exercises the image-content path: a plugin
+// returns both text and an image block, and the agentcore result should contain
+// both content types.
+func TestPluginLoadAndCallWithImage(t *testing.T) {
+	bin := buildTestPlugin(t, "img", imagePluginSrc)
+	p, err := Load(bin, nil, os.Stderr)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	defer p.Close()
+
+	tools := p.Tools()
+	if len(tools) != 1 || tools[0].Name() != "screenshot" {
+		t.Fatalf("tools = %+v, want one 'screenshot'", tools)
+	}
+
+	res, err := tools[0].Execute(context.Background(), "c2", json.RawMessage(`{}`), nil)
+	if err != nil {
+		t.Fatalf("Execute Go error: %v", err)
+	}
+	// First block must be the text content.
+	if txt := agentcore.ContentToText(res.Content); txt != "screen captured" {
+		t.Errorf("text = %q, want 'screen captured'", txt)
+	}
+	// Second block must be the image content.
+	if len(res.Content) != 2 {
+		t.Fatalf("content length = %d, want 2 (text + image)", len(res.Content))
+	}
+	img, ok := res.Content[1].(agentcore.ImageContent)
+	if !ok {
+		t.Fatalf("content[1] type = %T, want ImageContent", res.Content[1])
+	}
+	if img.Data != "iVBORw0KGgo=" {
+		t.Errorf("image data = %q, want 'iVBORw0KGgo='", img.Data)
+	}
+	if img.MimeType != "image/png" {
+		t.Errorf("image mimeType = %q, want 'image/png'", img.MimeType)
+	}
+}
+
 // crashPluginSrc initializes fine but exits abruptly on the first tools/call.
 const crashPluginSrc = `package main
 

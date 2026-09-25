@@ -128,7 +128,7 @@ func TestRunEndToEndWithMerge(t *testing.T) {
 	}
 
 	// The merged-away fragment must no longer be searchable.
-	store, err := memory.Open(filepath.Join(root, "index.db"), root, "")
+	store, err := memory.Open(filepath.Join(root, "index.db"), root, "", 72)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}

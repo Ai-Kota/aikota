@@ -28,6 +28,7 @@ import (
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"github.com/Ai-Kota/aikota/internal/agenttool"
 	"github.com/Ai-Kota/aikota/internal/compaction"
+	"github.com/Ai-Kota/aikota/internal/memory"
 	"github.com/Ai-Kota/aikota/internal/provider"
 )
 
@@ -46,6 +47,13 @@ type TurnUpdate struct {
 	Model         *string
 	ThinkingLevel *agentcore.ThinkingLevel
 }
+
+// DefaultMaxTurns is the hard cap on inner-loop turns (assistant message
+// exchanges) per run. Set to 0 for no cap (default — user's will prevails).
+// The decorator layer's force-stop logic (FR-12) runs on top of this; the two
+// are independent: MaxTurns stops the *model* from running forever, force-stop
+// stops a *hook* from blocking the run forever.
+const DefaultMaxTurns = 0
 
 // StopDecision is the result of the OnStop seam. Block=true prevents the run
 // from ending; Guidance, when non-empty, is appended as a user-role message to
@@ -112,6 +120,18 @@ type RunConfig struct {
 	// when persistent memory is disabled (memory.enabled=false), which fully
 	// disables checkpoint writing. A checkpoint write failure is non-fatal.
 	MemoryRoot string
+
+	// MaxTurns is the hard cap on inner-loop assistant-message exchanges per run.
+	// 0 = no cap (legacy). When reached, the loop emits a synthetic stop message
+	// and ends the run. This protects against a misbehaving model that keeps
+	// producing tool-call turns without a natural stop condition.
+	MaxTurns int
+
+	// Memory is the persistent memory store, providing both BM25 search and CCR
+	// cache access. A non-nil store enables checkpoint persistence, memory
+	// reminders, and CCR-based original-text caching during compaction. Nil when
+	// persistent memory is disabled (memory.enabled=false).
+	Memory *memory.Store
 }
 
 // LoopEventStream is the stream returned by the loop entry points: it carries
@@ -184,13 +204,41 @@ func runLoop(ctx context.Context, agentCtx *agentcore.AgentContext, cfg RunConfi
 		stream.Close()
 	}
 
+	// Auto-rebuild from checkpoint: load prior session context if available.
+	// This enables cross-session continuity so the agent resumes with its
+	// prior summary rather than starting from a blank slate.
+	if cfg.MemoryRoot != "" && cfg.SessionID != "" {
+		if rebuilt, err := RebuildFromCheckpoint(ctx, agentCtx.Messages, cfg.SessionID, cfg.MemoryRoot, &cfg, nil); err == nil && !rebuilt.NoOp && rebuilt.FromCheckpoint {
+			_ = emit(agentcore.CompactionEvent{
+				Reason:          "rebuild",
+				TokensBefore:    rebuilt.TokensBefore,
+				TokensAfter:     rebuilt.TokensAfter,
+				SummarizedCount: rebuilt.SummarizedCount,
+				KeptCount:       rebuilt.KeptCount,
+			})
+			tel.recordContext(rebuilt.TokensAfter, cfg.ContextWindow)
+			agentCtx.Messages = rebuilt.Messages
+		}
+	}
+
 	if err := emit(agentcore.AgentStartEvent{SessionID: cfg.SessionID}); err != nil {
 		finish()
 		return
 	}
 
 	for { // outer loop: pending / follow-up messages
+		turnCount := 0
 		for { // inner loop: turns until no tool calls
+			if cfg.MaxTurns > 0 && turnCount >= cfg.MaxTurns {
+				// Hard cap reached: emit a synthetic stop and end the run.
+				_ = emit(agentcore.TurnEndEvent{Message: agentcore.AssistantMessage{
+					RoleField: agentcore.RoleAssistant,
+					Content:   agentcore.ContentList{agentcore.NewTextContent("[aikota] max turns reached — stopping")},
+				}})
+				finish()
+				return
+			}
+			turnCount++
 			if err := emit(agentcore.TurnStartEvent{}); err != nil {
 				finish()
 				return
@@ -403,7 +451,11 @@ func runCompaction(ctx context.Context, msgs agentcore.MessageList, cfg *RunConf
 		}
 	}
 	scfg := provider.StreamConfig{APIKey: key, ThinkingLevel: cfg.ThinkingLevel}
-	return compaction.Compact(ctx, stream, model, msgs, cfg.Compaction, -1, nil, "", scfg)
+	var ccr *memory.CCRCache
+	if cfg.Memory != nil {
+		ccr = cfg.Memory.CCRCache()
+	}
+	return compaction.Compact(ctx, stream, model, msgs, cfg.Compaction, -1, nil, "", scfg, ccr)
 }
 
 // writeCompactionCheckpoint persists the just-produced compaction summary as a

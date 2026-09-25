@@ -32,6 +32,13 @@ func TestCheckBlocksDangerousCommands(t *testing.T) {
 		{"rm -rf /home", "rm-root"},
 		{"rm -fr /", "rm-root"},
 		{"rm -r -f /", "rm-root"},
+		// Long-flag forms that could bypass short-flag-only rules.
+		{"rm --recursive --force /", "rm-root"},
+		{"rm --recursive -f /", "rm-root"},
+		{"rm -r --force /", "rm-root"},
+		{"rm --no-preserve-root -rf /", "rm-root"},
+		{"rm --no-preserve-root --recursive --force /", "rm-root"},
+		{"rm --recursive ~/Downloads", "rm-root"},
 		// The dangerous command need not be first.
 		{"cd /tmp && rm -rf /", "rm-root"},
 		{"echo hi; rm -rf ~", "rm-root"},

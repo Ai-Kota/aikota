@@ -8,8 +8,9 @@
 //
 //   - initialize            → Manifest {name, version, tools[], commands[]}
 //     The handshake. The plugin declares everything it offers up front.
-//   - tools/call {name, arguments} → CallResult {content, isError}
-//     aikota forwards a tool invocation; the plugin runs it and returns the text.
+//   - tools/call {name, arguments} → CallResult {content, isError, image?}
+//     aikota forwards a tool invocation; the plugin runs it and returns text
+//     and optionally an image block (for screenshot-type tools).
 //   - event {type, data} (notification)
 //     aikota pushes a subscribed agent lifecycle event (US-017, #133). One-way,
 //     fire-and-forget: the plugin never replies and a slow plugin is isolated.
@@ -68,9 +69,18 @@ type CallParams struct {
 
 // CallResult is the reply to a tools/call request. Content is the tool output as
 // text; IsError marks a tool-level failure (distinct from a transport error).
+// When a tool returns an image (e.g. screenshot), ImageData carries the base64
+// payload and MIME type so the agent loop can surface it as an image block.
 type CallResult struct {
-	Content string `json:"content"`
-	IsError bool   `json:"isError,omitempty"`
+	Content   string        `json:"content"`
+	IsError   bool          `json:"isError,omitempty"`
+	ImageData *ImageContent `json:"image,omitempty"`
+}
+
+// ImageContent carries a tool-generated image block for the agent loop.
+type ImageContent struct {
+	Data     string `json:"data"`     // base64-encoded image bytes
+	MimeType string `json:"mimeType"` // e.g. "image/png", "image/jpeg"
 }
 
 // CommandCallParams is the parameter object for a commands/call request. It
