@@ -36,7 +36,7 @@ import (
 	"github.com/Ai-Kota/aikota/internal/cli/repl"
 	"github.com/Ai-Kota/aikota/internal/cli/run"
 	"github.com/Ai-Kota/aikota/internal/cli/sessioncmd"
-	"github.com/Ai-Kota/aikota/internal/cli/tui"
+	"github.com/Ai-Kota/aikota/internal/cli/interactive"
 	"github.com/Ai-Kota/aikota/internal/cli/ui"
 	"github.com/Ai-Kota/aikota/internal/dream"
 	"github.com/Ai-Kota/aikota/internal/provider"
@@ -137,7 +137,7 @@ type cliOptions struct {
 	credentialRef string
 	// noTUI forces the line-based REPL instead of the full-screen TUI (US-001).
 	// When set — or when stdout is not a TTY — the no-prompt path falls back to
-	// repl.Run rather than launching tui.Run.
+	// repl.Run rather than launching interactive.Run.
 	noTUI bool
 	// cwd, when non-empty, is the working directory aikota switches to before doing
 	// anything else (matches the Claude Agent SDK's cwd option / git -C). Every
@@ -480,7 +480,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 			// can show an upgrade hint on this or the next launch without blocking
 			// startup (US-004). No-ops for dev builds or a fresh cache.
 			selfupdate.StartBackgroundCheck(version)
-			if err := tui.Run(tui.Options{
+			if err := interactive.Run(interactive.Options{
 				Model:             opts.model,
 				ProviderName:      env.ProviderName,
 				Provider:          env.Provider,

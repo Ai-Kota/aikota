@@ -1,5 +1,5 @@
 // Package prompts holds the slash-command registry assembly shared by the REPL
-// (internal/cli/repl) and the forthcoming TUI (internal/cli/tui). It was sunk
+// (internal/cli/repl) and the forthcoming TUI (internal/cli/interactive). It was sunk
 // out of the repl package (#383) so both front-ends wire the same built-in,
 // live-state, plugin-declared, prompt-template and skill commands from one
 // owner, avoiding drift between the two command surfaces.
