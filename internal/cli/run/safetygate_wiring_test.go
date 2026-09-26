@@ -22,7 +22,7 @@ func newGateTestConfig(t *testing.T) agentcore.BeforeToolCallFunc {
 	t.Helper()
 	cfg := NewConfig(
 		"test-model", "test-provider", agentcore.ThinkingMedium,
-		nil, provider.NewCredentialStore(nil), agenttool.NewToolRegistry(), nil, nil,
+		nil, provider.NewCredentialStore(nil), agenttool.NewToolRegistry(), nil, nil, nil,
 	)
 	if cfg.Batch.BeforeToolCall == nil {
 		t.Fatal("NewConfig did not install the built-in safety gate")
