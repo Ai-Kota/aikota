@@ -46,8 +46,8 @@ type Set struct {
 }
 
 // goalWorkflowSkills is the goal-workflow set (https://goal.rpcx.io) minus
-// humanize-it (intentionally excluded), plus the two standalone skills
-// architecture-diagram and weather.
+// humanize-it (intentionally excluded), plus standalone additions and
+// quality/performance/security skills added by aikota.
 var goalWorkflowSkills = []string{
 	// goal-workflow core
 	"prd", "prd-to-spec", "to-issues", "review-it", "ship-it",
@@ -56,6 +56,8 @@ var goalWorkflowSkills = []string{
 	"code-to-spec", "smell", "loop-it", "to-design", "graph",
 	// standalone additions
 	"architecture-diagram", "weather",
+	// aikota quality/performance/security skills
+	"clean-code", "perf-optimize", "test-gen", "security-audit",
 }
 
 // Manifest is the single source of truth for the built-in skill collections
