@@ -282,6 +282,7 @@ func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
 		&agenttool.GitTool{Root: cwd},
 		&agenttool.PlanTool{},
 		&agenttool.PRTool{Root: cwd},
+		&agenttool.BrowserTool{Root: cwd, Headless: true},
 		&agenttool.BashTool{Dir: cwd, Jobs: jobs, Shell: opts.Shell},
 		&agenttool.BashOutputTool{Jobs: jobs},
 		&agenttool.BashKillTool{Jobs: jobs},

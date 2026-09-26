@@ -11,6 +11,8 @@ require (
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/coder/websocket v1.8.13
+	github.com/go-rod/rod v0.116.2
+	github.com/google/uuid v1.6.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/openai/openai-go v1.12.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
@@ -40,7 +42,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
@@ -57,6 +58,9 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/ysmood/fetchup v0.2.3 // indirect
+	github.com/ysmood/gson v0.7.3 // indirect
+	github.com/ysmood/leakless v0.9.0 // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	golang.org/x/sync v0.22.0 // indirect
