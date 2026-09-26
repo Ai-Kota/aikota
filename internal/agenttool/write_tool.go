@@ -27,6 +27,9 @@ type WriteTool struct {
 	// Snap, when non-nil, records the file's prior content before it is written so
 	// the /rewind command can roll the change back. It is shared with the edit tool.
 	Snap *FileSnapshotRecorder
+	// VerifyState, when non-nil, is marked dirty on every successful write so
+	// the verification loop (PreCommitGate + VerifyReminderProvider) stays in sync.
+	VerifyState any // *runtime.VerificationState — non-type to avoid import cycle
 }
 
 // writeToolArgs is the decoded argument shape for WriteTool.
@@ -112,6 +115,9 @@ func (t *WriteTool) Execute(ctx context.Context, id string, args json.RawMessage
 	t.Snap.Record(full)
 	if err := os.WriteFile(full, []byte(a.Content), filePerm); err != nil {
 		return errorResult(fmt.Sprintf("write: cannot write %q: %v", a.Path, err)), nil
+	}
+	if vs, ok := t.VerifyState.(interface{ MarkChanged() }); ok {
+		vs.MarkChanged()
 	}
 	verb := "Created"
 	if overwrote {

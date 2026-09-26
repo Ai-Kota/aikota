@@ -81,6 +81,11 @@ type Options struct {
 	// whether to launch the startup background consolidation; a zero value
 	// (Enabled false) disables the auto-trigger entirely.
 	Dream dream.Config
+
+	// VerificationState tracks unverified changes across the run. Passed to
+	// TodoReminders so the verify reminder provider and write/edit tools share
+	// the same pending flag. Nil when tools are disabled.
+	VerificationState *runtime.VerificationState
 }
 
 // Run starts the line-based REPL over a persisted session. It keeps
@@ -225,7 +230,7 @@ func Run(opts Options) error {
 		agentCtx:   agentCtx,
 		live:       live,
 		reg:        reg,
-		reminders:  run.TodoReminders(opts.Tools),
+		reminders:  run.TodoReminders(opts.Tools, run.ToolOpts{VerificationState: opts.VerificationState}),
 		schedule:   agenttool.ScheduleFromTools(opts.Tools),
 		slash:      slash,
 		creds:      creds,

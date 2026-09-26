@@ -20,6 +20,9 @@ import (
 type VerifyTool struct {
 	// Root is the project directory; empty defaults to the working directory.
 	Root string
+	// VerifyState, when non-nil, is cleared (marked verified) on every successful
+	// verify call so the verification loop stays in sync.
+	VerifyState any // *runtime.VerificationState — non-type to avoid import cycle
 }
 
 type verifyArgs struct {
@@ -89,6 +92,9 @@ func (t *VerifyTool) Execute(ctx context.Context, _ string, _ json.RawMessage, _
 		return errorResult("verify: " + err.Error()), nil
 	}
 	res := verify.Run(ctx, root, cmds)
+	if vs, ok := t.VerifyState.(interface{ MarkVerified() }); ok {
+		vs.MarkVerified()
+	}
 
 	return agentcore.AgentToolResult{
 		Content: agentcore.ContentList{agentcore.NewTextContent(renderVerify(res))},

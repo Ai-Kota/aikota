@@ -76,12 +76,12 @@ func TestTodoRemindersRegistersMemoryProvider(t *testing.T) {
 	}
 	defer store.Close()
 
-	reg := TodoReminders([]agentcore.AgentTool{&agenttool.MemorySearchTool{Store: store}})
+	reg := TodoReminders([]agentcore.AgentTool{&agenttool.MemorySearchTool{Store: store}}, ToolOpts{})
 	if reg == nil || reg.Empty() {
 		t.Fatal("TodoReminders with a memory_search tool should yield a non-empty registry")
 	}
 
-	if reg := TodoReminders(nil); reg != nil {
+	if reg := TodoReminders(nil, ToolOpts{}); reg != nil {
 		t.Errorf("TodoReminders(nil) = %v, want nil", reg)
 	}
 }

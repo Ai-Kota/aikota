@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/Ai-Kota/aikota/internal/agentcore"
+	"github.com/Ai-Kota/aikota/internal/dream"
 	"github.com/Ai-Kota/aikota/internal/plugin"
 	"github.com/Ai-Kota/aikota/internal/provider"
 	"github.com/Ai-Kota/aikota/internal/runtime"
@@ -56,4 +57,12 @@ type Options struct {
 	// settings, CLI); built-in slash commands are unaffected. Independent of
 	// --no-skills.
 	NoPromptTemplates bool
+	// Dream is the resolved [dream] configuration (US-008). Run uses it to decide
+	// whether to launch the startup background consolidation; a zero value
+	// (Enabled false) disables the auto-trigger entirely.
+	Dream dream.Config
+	// VerificationState tracks unverified changes across the run. Passed to
+	// TodoReminders so the verify reminder provider and write/edit tools share
+	// the same pending flag. Nil when tools are disabled.
+	VerificationState *runtime.VerificationState
 }

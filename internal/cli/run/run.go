@@ -60,6 +60,11 @@ type Env struct {
 	// GetFollowUpMessages seam (see NewConfig) and front-ends can reach it via
 	// agenttool.ScheduleFromTools.
 	Schedule *agenttool.Schedule
+
+	// VerificationState tracks unverified changes across the run so that the
+	// write/edit tools, verify tool, reminder provider, and pre-commit gate all
+	// share a single source of truth (issue #566). Nil when tools are disabled.
+	VerificationState *runtime.VerificationState
 }
 
 // SetupEnv resolves the provider for model/baseURL, builds the tool set rooted
@@ -86,6 +91,12 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 		return Env{}, err
 	}
 	tools := BuiltinTools(cwd, ToolOpts{Disabled: noTools, Shell: shell})
+	// Build the shared verification state so the loop (reminder + gate)
+	// can watch writes and clears without leaking state to callers.
+	var vs *runtime.VerificationState
+	if !noTools {
+		vs = runtime.NewVerificationState()
+	}
 	// Open the persistent memory store once (issue #481) and expose it as the
 	// memory_search tool so the agent can recall earlier context. Memory is a
 	// tool, so it is skipped under --no-tools; memory.enabled=false disables it
@@ -192,15 +203,16 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 		return Env{}, err
 	}
 	return Env{
-		Cwd:          cwd,
-		Tools:        tools,
-		Provider:     prov,
-		ProviderName: resolvedName,
-		SysPrompt:    sysPrompt,
-		Skills:       skills,
-		Plugins:      mgr,
-		Memory:       memStore,
-		Schedule:     sched,
+		Cwd:               cwd,
+		Tools:             tools,
+		Provider:          prov,
+		ProviderName:      resolvedName,
+		SysPrompt:         sysPrompt,
+		Skills:            skills,
+		Plugins:           mgr,
+		Memory:            memStore,
+		Schedule:          sched,
+		VerificationState: vs,
 	}, nil
 }
 
@@ -261,12 +273,12 @@ func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
 	jobs := agenttool.NewBashJobStore()
 	return []agentcore.AgentTool{
 		&agenttool.ReadTool{Root: cwd, ExtraRoots: ReadableExtraRoots()},
-		&agenttool.WriteTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap},
-		&agenttool.EditTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap},
+		&agenttool.WriteTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap, VerifyState: opts.VerificationState},
+		&agenttool.EditTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap, VerifyState: opts.VerificationState},
 		&agenttool.GrepTool{Root: cwd},
 		&agenttool.FindTool{Root: cwd},
 		&agenttool.RepoMapTool{Root: cwd},
-		&agenttool.VerifyTool{Root: cwd},
+		&agenttool.VerifyTool{Root: cwd, VerifyState: opts.VerificationState},
 		&agenttool.BashTool{Dir: cwd, Jobs: jobs, Shell: opts.Shell},
 		&agenttool.BashOutputTool{Jobs: jobs},
 		&agenttool.BashKillTool{Jobs: jobs},
@@ -346,9 +358,12 @@ func ToolRegistry(tools []agentcore.AgentTool) *agenttool.ToolRegistry {
 // over its shared store, so the model is reminded of unfinished tasks each turn.
 // It also registers a MemoryReminderProvider over the memory_search tool's store
 // (issue #481) when present, so relevant persisted memory is recalled each turn
-// (this is the recall channel used after auto-compaction/rebuild). Returns nil
-// when neither provider applies (e.g. --no-tools), leaving injection disabled.
-func TodoReminders(tools []agentcore.AgentTool) *runtime.ReminderRegistry {
+// (this is the recall channel used after auto-compaction/rebuild).
+// It wires the VerifyReminderProvider over the VerifyTool's root using the
+// shared VerificationState so the reminder and the PreCommitGate stay in sync.
+// Returns nil when neither provider applies (e.g. --no-tools), leaving injection
+// disabled.
+func TodoReminders(tools []agentcore.AgentTool, opts ToolOpts) *runtime.ReminderRegistry {
 	var providers []runtime.ReminderProvider
 	for _, t := range tools {
 		switch tool := t.(type) {
@@ -364,8 +379,7 @@ func TodoReminders(tools []agentcore.AgentTool) *runtime.ReminderRegistry {
 			// The provider derives its root from the tool, so registering a
 			// verify tool is what turns verification into a loop. A project
 			// with no discoverable checks yields nil and stays unreminded.
-			// VerificationState is passed separately (see WireVerificationState).
-			if p := runtime.NewVerifyReminderProvider(nil, tool.Root); p != nil {
+			if p := runtime.NewVerifyReminderProvider(opts.VerificationState, tool.Root); p != nil {
 				providers = append(providers, p)
 			}
 		}
@@ -631,7 +645,7 @@ func Trusted(cwd string) bool {
 // stream, the dynamic API-key resolver, and the tool registry. It is the single
 // definition of "how a run is wired", so the REPL (streamRun) and the headless
 // driver cannot drift apart.
-func NewConfig(model, providerName string, thinking agentcore.ThinkingLevel, prov provider.Provider, creds *provider.CredentialStore, reg *agenttool.ToolRegistry, reminders *runtime.ReminderRegistry, sched *agenttool.Schedule) runtime.RunConfig {
+func NewConfig(model, providerName string, thinking agentcore.ThinkingLevel, prov provider.Provider, creds *provider.CredentialStore, reg *agenttool.ToolRegistry, reminders *runtime.ReminderRegistry, sched *agenttool.Schedule, vs *runtime.VerificationState) runtime.RunConfig {
 	cfg := runtime.RunConfig{
 		LoopConfig: runtime.LoopConfig{
 			Model:         model,
@@ -651,7 +665,12 @@ func NewConfig(model, providerName string, thinking agentcore.ThinkingLevel, pro
 				// rather than in the CLI is deliberate — the embedded SDK
 				// builds its config through this same function, so both modes
 				// are covered.
-				BeforeToolCall: safetygate.Gate(),
+				// PreCommitGate is chained after it so verification blocking
+				// only activates when the project has discoverable checks.
+				BeforeToolCall: chainBeforeToolCall(
+					safetygate.Gate(),
+					runtime.PreCommitGate(vs, ""), // root resolved from tools at call site
+				),
 			},
 		},
 		Reminders: reminders,
