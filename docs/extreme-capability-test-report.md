@@ -170,7 +170,7 @@
 | `internal/cli/goal/goal.go` | 适配 HookNotifier 新签名 |
 | `internal/cli/repl/repl.go` | 适配 HookNotifier 新签名 |
 | `internal/cli/run/hooks_driver.go` | 适配 HookNotifier 新签名 |
-| `internal/cli/tui/session.go` | 适配 HookNotifier 新签名 |
+| `internal/cli/interactive/session.go` | 适配 HookNotifier 新签名 |
 | `internal/plugin/manifest.go` | 添加 ImageContent 结构体 |
 | `internal/plugin/plugin.go` | 支持插件返回图片内容 |
 | `internal/plugin/plugin_test.go` | 新增图片插件完整测试 |
