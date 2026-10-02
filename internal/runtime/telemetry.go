@@ -30,6 +30,13 @@ type telemetry struct {
 	truncationCount int
 	compactionCount int
 
+	// provider is the canonical provider name for this run, used for cost estimation.
+	provider string
+	// startTime is the wall-clock time when this run started.
+	startTime time.Time
+	// firstTokenTime is the wall-clock time when the first token was received.
+	firstTokenTime time.Time
+
 	// toolStarts maps an in-flight tool call id to the wall-clock time its
 	// execution began, so the matching end event can compute a duration. Keying
 	// by call id (not tool name) keeps parallel tool batches correct.
@@ -71,6 +78,13 @@ func newTelemetry() *telemetry {
 	}
 }
 
+// setProvider sets the provider name for cost calculation.
+func (t *telemetry) setProvider(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.provider = name
+}
+
 // observe folds a single emitted event into the accumulator. It is a no-op for
 // event types that carry no telemetry signal, and it never mutates the event.
 func (t *telemetry) observe(ev agentcore.AgentEvent) {
@@ -82,6 +96,15 @@ func (t *telemetry) observe(ev agentcore.AgentEvent) {
 	switch e := ev.(type) {
 	case agentcore.TurnStartEvent:
 		t.turns++
+		// Record start time on first turn for latency measurement.
+		if t.startTime.IsZero() {
+			t.startTime = t.now()
+		}
+	case agentcore.MessageStartEvent:
+		// Record first token time for TTFB calculation.
+		if t.firstTokenTime.IsZero() {
+			t.firstTokenTime = t.now()
+		}
 	case agentcore.ToolExecutionStartEvent:
 		t.toolStarts[e.ToolCallID] = t.now()
 	case agentcore.ToolExecutionEndEvent:
@@ -153,6 +176,11 @@ func (t *telemetry) summary() agentcore.TelemetryEvent {
 	if t.contextWindow > 0 {
 		utilization = float64(t.contextTokens) / float64(t.contextWindow)
 	}
+	// Calculate first token latency (time from run start to first token).
+	var firstTokenTimeMs int64
+	if !t.startTime.IsZero() && !t.firstTokenTime.IsZero() {
+		firstTokenTimeMs = t.firstTokenTime.Sub(t.startTime).Milliseconds()
+	}
 	return agentcore.TelemetryEvent{
 		Turns:              t.turns,
 		ToolDurationsMs:    timings,
@@ -166,6 +194,8 @@ func (t *telemetry) summary() agentcore.TelemetryEvent {
 		LastErrorType:      t.lastErrorType,
 		LastErrorMsg:       t.lastErrorMsg,
 		ToolErrorCount:     t.toolErrorCount,
+		StartTime:          t.startTime,
+		FirstTokenTimeMs:   firstTokenTimeMs,
 	}
 }
 

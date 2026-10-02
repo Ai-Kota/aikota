@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"time"
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"github.com/Ai-Kota/aikota/internal/cli"
 	"github.com/Ai-Kota/aikota/internal/compaction"
@@ -249,6 +250,331 @@ func TestMaskKey(t *testing.T) {
 	for _, c := range cases {
 		if got := maskKey(c.in); got != c.want {
 			t.Errorf("maskKey(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestRunStatusTelemetryWithCost(t *testing.T) {
+	host := newFakeHost()
+	host.live.ContextWindow = 128000
+
+	holder := cli.NewTelemetryHolder()
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns:              3,
+		InputTokens:        1000,
+		OutputTokens:       500,
+		EstimatedCostUSD:   5.50,
+		Provider:           "anthropic",
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	if !strings.Contains(output, "estimated cost:") {
+		t.Error("expected 'estimated cost:' in output")
+	}
+	if !strings.Contains(output, "5.50") {
+		t.Error("expected '5.50' cost value in output")
+	}
+}
+
+func TestRunStatusTelemetryZeroCost(t *testing.T) {
+	host := newFakeHost()
+	host.live.ContextWindow = 128000
+
+	holder := cli.NewTelemetryHolder()
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns:              2,
+		InputTokens:        500,
+		OutputTokens:       200,
+		EstimatedCostUSD:   0,
+		Provider:           "nvidia",
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	if !strings.Contains(output, "estimated cost:") {
+		t.Error("expected 'estimated cost:' in output")
+	}
+	if !strings.Contains(output, "unknown") {
+		t.Error("expected 'unknown' cost when cost is zero")
+	}
+}
+
+func TestRunStatusDoubleViewLastAndCumulative(t *testing.T) {
+	host := newFakeHost()
+	host.live.ContextWindow = 128000
+
+	holder := cli.NewTelemetryHolder()
+	// First run
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns:              3,
+		InputTokens:        1000,
+		OutputTokens:       500,
+		EstimatedCostUSD:   0.0123,
+		ContextUtilization: 0.4,
+		ContextTokens:      51200,
+		ContextWindow:      128000,
+		FirstTokenTimeMs:   850,
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	// Should show both views
+	if !strings.Contains(output, "since session start:") {
+		t.Error("expected 'since session start:' block")
+	}
+	if !strings.Contains(output, "last run:") {
+		t.Error("expected 'last run:' block")
+	}
+	// Cumulative and last should be same after one run
+	if !strings.Contains(output, "turns: 3") {
+		t.Error("expected turns: 3")
+	}
+	// TTFB should appear in last run block
+	if !strings.Contains(output, "TTFB: 850ms") {
+		t.Errorf("expected TTFB: 850ms in output, got:\n%s", output)
+	}
+	// Cost should appear
+	if !strings.Contains(output, "0.0123") {
+		t.Errorf("expected cost 0.0123 in output, got:\n%s", output)
+	}
+
+	// Second run - cumulative should differ from last
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns:              2,
+		InputTokens:        800,
+		OutputTokens:       400,
+		EstimatedCostUSD:   0.0098,
+		ContextUtilization: 0.45,
+		ContextTokens:      57600,
+		ContextWindow:      128000,
+		FirstTokenTimeMs:   720,
+	})
+	buf.Reset()
+	RunStatus(&buf, host)
+	output = buf.String()
+
+	if !strings.Contains(output, "turns: 5") {
+		t.Error("expected cumulative turns: 5")
+	}
+	if !strings.Contains(output, "turns: 2") {
+		t.Error("expected last run turns: 2")
+	}
+	// Last run TTFB should be 720 (most recent)
+	if !strings.Contains(output, "TTFB: 720ms") {
+		t.Errorf("expected TTFB: 720ms, got:\n%s", output)
+	}
+}
+
+func TestRunStatusDiagnosticsSection(t *testing.T) {
+	host := newFakeHost()
+
+	holder := cli.NewTelemetryHolder()
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns: 1,
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	if !strings.Contains(output, "diagnostics:") {
+		t.Error("expected 'diagnostics:' section")
+	}
+	// DiagnosticErrors() currently returns nil (no error tracking implemented yet)
+	// so we check for the "ok" status when no errors
+	if !strings.Contains(output, "status: ok") {
+		t.Error("expected 'status: ok' when no errors")
+	}
+}
+
+func TestRunStatusDiagnosticsClean(t *testing.T) {
+	host := newFakeHost()
+
+	holder := cli.NewTelemetryHolder()
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns: 1,
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	if !strings.Contains(output, "diagnostics:") {
+		t.Error("expected 'diagnostics:' section")
+	}
+	if !strings.Contains(output, "status: ok") {
+		t.Error("expected 'status: ok' when no errors")
+	}
+}
+
+func TestRunStatusNoTelemetryShowsPlaceholder(t *testing.T) {
+	host := newFakeHost()
+	// host.telemetry is nil
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	count := strings.Count(output, "no telemetry yet")
+	if count != 2 {
+		t.Errorf("expected 2 'no telemetry yet' placeholders, got %d", count)
+	}
+}
+
+func TestRunStatusEnvironmentSection(t *testing.T) {
+	host := newFakeHost()
+	host.cwd = "/tmp/test-project"
+
+	// Add skills and plugins
+	host.slash.AddSkill(runtime.SlashCommand{
+		Name:     "my-skill",
+		Expand:   func(string) string { return "" },
+		Source:   runtime.SourceSkill,
+	})
+	host.slash.AddPlugin(runtime.SlashCommand{
+		Name:  "my-plugin",
+		Run:   func(string) (string, string) { return "", "" },
+		Source: runtime.SourcePlugin,
+	})
+	host.slash.AddUser(runtime.SlashCommand{
+		Name:   "my-cmd",
+		Run:    func(string) (string, string) { return "", "" },
+		Source: runtime.SourceUser,
+	})
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	if !strings.Contains(output, "project & environment:") {
+		t.Error("expected 'project & environment:' section")
+	}
+	if !strings.Contains(output, "skills: 1 (my-skill)") {
+		t.Errorf("expected skills listing, got:\n%s", output)
+	}
+	if !strings.Contains(output, "plugins: 1 (my-plugin)") {
+		t.Errorf("expected plugins listing, got:\n%s", output)
+	}
+	if !strings.Contains(output, "user commands: 1 (my-cmd)") {
+		t.Errorf("expected user commands listing, got:\n%s", output)
+	}
+}
+
+func TestRunStatusFullGolden(t *testing.T) {
+	host := newFakeHost()
+	host.live.Model = "claude-sonnet-4-20250514"
+	host.live.ProviderName = "anthropic"
+	host.live.BaseURL = "https://api.anthropic.com"
+	host.live.Protocol = "anthropic"
+	host.live.ThinkingLevel = agentcore.ThinkingMedium
+	host.live.ContextWindow = 200000
+	host.cwd = "/home/user/project"
+
+	host.agentCtx.Messages = append(host.agentCtx.Messages,
+		agentcore.UserMessage{RoleField: agentcore.RoleUser, Content: agentcore.ContentList{agentcore.NewTextContent("hello")}},
+	)
+
+	// Add skills and plugins
+	host.slash.AddSkill(runtime.SlashCommand{
+		Name:   "code-review",
+		Expand: func(string) string { return "" },
+		Source: runtime.SourceSkill,
+	})
+	host.slash.AddPlugin(runtime.SlashCommand{
+		Name:  "linter",
+		Run:   func(string) (string, string) { return "", "" },
+		Source: runtime.SourcePlugin,
+	})
+
+	// Set up credentials
+	host.creds.SetOverride("anthropic", "sk-ant-test-key-5678")
+
+	// Add telemetry data
+	holder := cli.NewTelemetryHolder()
+	holder.Fold(agentcore.TelemetryEvent{
+		Turns:              5,
+		InputTokens:        15000,
+		OutputTokens:       3200,
+		EstimatedCostUSD:   0.0456,
+		TruncationCount:    0,
+		CompactionCount:    1,
+		ContextUtilization: 0.65,
+		ContextTokens:      130000,
+		ContextWindow:      200000,
+		ToolDurationsMs: map[string]agentcore.ToolTiming{
+			"read":     {Count: 8, TotalMs: 240},
+			"bash":     {Count: 3, TotalMs: 180},
+			"edit":     {Count: 2, TotalMs: 95},
+		},
+		StartTime:      time.Now().Add(-5 * time.Minute),
+		FirstTokenTimeMs: 1250,
+		LastErrorType:  "",
+		LastErrorMsg:   "",
+		ToolErrorCount: 0,
+	})
+	host.telemetry = holder
+
+	var buf bytes.Buffer
+	RunStatus(&buf, host)
+	output := buf.String()
+
+	// Verify all sections present
+	sections := []string{
+		"runtime config:",
+		"context:",
+		"project & environment:",
+		"credentials & connectivity:",
+		"diagnostics:",
+		"telemetry:",
+	}
+	for _, section := range sections {
+		if !strings.Contains(output, section) {
+			t.Errorf("expected section '%s' in output", section)
+		}
+	}
+
+	// Verify key values
+	checks := []struct{ needle, desc string }{
+		{"model: claude-sonnet-4-20250514", "model"},
+		{"provider: anthropic", "provider"},
+		{"thinking: medium", "thinking level"},
+		{"context window: 200000 tokens", "context window"},
+		{"2 / 200000 tokens", "current context"},
+		{"65%", "utilization"},
+		{"compactions: 1", "compaction count"},
+		{"cwd: /home/user/project", "working directory"},
+		{"skills: 1 (code-review)", "skills"},
+		{"plugins: 1 (linter)", "plugins"},
+		{"api key: set", "api key status"},
+		{"••••5678", "masked key"},
+		{"endpoint: https://api.anthropic.com", "endpoint"},
+		{"status: ok", "diagnostics status"},
+		{"since session start:", "cumulative view"},
+		{"last run:", "last run view"},
+		{"turns: 5", "turns"},
+		{"input tokens: 15000", "input tokens"},
+		{"output tokens: 3200", "output tokens"},
+		{"0.0456", "cost"},
+		{"TTFB: 1250ms", "TTFB"},
+		{"read", "read tool"},
+		{"bash", "bash tool"},
+		{"edit", "edit tool"},
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check.needle) {
+			t.Errorf("expected %s (%s) in output", check.needle, check.desc)
 		}
 	}
 }

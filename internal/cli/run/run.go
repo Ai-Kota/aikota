@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -80,7 +81,7 @@ type Env struct {
 // fully assembled tool set and then applied, so an unknown tool name is a usage
 // error rather than a silently ineffective boundary. It returns an error rather
 // than exiting so the caller owns exit-code mapping.
-func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, noSkills bool, systemPrompt string, appendSystemPrompt []string, memEnabled bool, policy ToolPolicy, shell string) (Env, error) {
+func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, noSkills bool, systemPrompt string, appendSystemPrompt []string, memEnabled bool, policy ToolPolicy, shell string, lspEnabled bool, lspServerPath string) (Env, error) {
 	cwd, _ := os.Getwd()
 	prov, resolvedName, err := provider.ResolveProvider(model, baseURL, protocol, providerName, os.Getenv)
 	if err != nil {
@@ -90,7 +91,7 @@ func SetupEnv(model, baseURL, protocol, providerName, apiKey string, noTools, no
 	if err != nil {
 		return Env{}, err
 	}
-	tools := BuiltinTools(cwd, ToolOpts{Disabled: noTools, Shell: shell})
+	tools := BuiltinTools(cwd, ToolOpts{Disabled: noTools, Shell: shell, LspEnabled: lspEnabled, LspServerPath: lspServerPath})
 	// Build the shared verification state so the loop (reminder + gate)
 	// can watch writes and clears without leaking state to callers.
 	var vs *runtime.VerificationState
@@ -271,7 +272,7 @@ func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
 	// A single job store is shared by bash, bash_output and kill_bash so a
 	// background command launched by bash is visible to the drain/kill tools.
 	jobs := agenttool.NewBashJobStore()
-	return []agentcore.AgentTool{
+	tools := []agentcore.AgentTool{
 		&agenttool.ReadTool{Root: cwd, ExtraRoots: ReadableExtraRoots()},
 		&agenttool.WriteTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap, VerifyState: opts.VerificationState},
 		&agenttool.EditTool{Root: cwd, ExtraRoots: ReadableExtraRoots(), Snap: snap, VerifyState: opts.VerificationState},
@@ -290,6 +291,24 @@ func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
 		&agenttool.WebFetchTool{},
 		&agenttool.WebSearchTool{},
 	}
+	// Append LSP tools when enabled and server is available.
+	if opts.LspEnabled {
+		lspPath := opts.LspServerPath
+		if lspPath == "" {
+			if p, err := exec.LookPath("gopls"); err == nil {
+				lspPath = p
+			}
+		}
+		if lspPath != "" {
+			tools = append(tools,
+				agenttool.NewLspDefinitionTool(cwd, lspPath),
+				agenttool.NewLspReferencesTool(cwd, lspPath),
+				agenttool.NewLspSymbolsTool(cwd, lspPath),
+				agenttool.NewLspHoverTool(cwd, lspPath),
+			)
+		}
+	}
+	return tools
 }
 
 // ToolOpts is the per-run tool-set configuration shared by BuiltinTools and its
@@ -297,6 +316,13 @@ func BuiltinTools(cwd string, opts ToolOpts) []agentcore.AgentTool {
 // (cwd, disabled) call sites are rewritten to this shape so the tool set stays
 // a single construction point.
 type ToolOpts struct {
+	// LspEnabled, when true, adds LSP tools (lsp_definition, lsp_references,
+	// lsp_symbols, lsp_hover) to the tool set. The tools are added only when
+	// the LSP server is available (auto-detected or explicitly configured).
+	LspEnabled bool
+	// LspServerPath overrides the auto-detected LSP server path. Empty means
+	// use the default (gopls on PATH).
+	LspServerPath string
 	// Disabled, when true, yields nil (the historical --no-tools behavior).
 	Disabled bool
 	// Shell, when non-empty, pins the bash tool's interpreter for this run

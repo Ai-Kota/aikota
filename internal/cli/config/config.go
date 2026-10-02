@@ -74,6 +74,17 @@ type FileConfig struct {
 	// internal/dream (Config). See tasks/spec-dream-memory-consolidation.md
 	// §3.3.
 	Dream DreamConfig `toml:"dream"`
+	// Lsp is the [lsp] TOML table for LSP tool support.
+	// ServerPath can be left empty to auto-detect gopls; set it explicitly
+	// for pyright, typescript-language-server, etc.
+	Lsp LspConfig `toml:"lsp"`
+}
+
+// LspConfig is the [lsp] TOML table. Enabled defaults to true; server_path
+// defaults to "gopls" in the user's PATH.
+type LspConfig struct {
+	Enabled    *bool   `toml:"enabled"`
+	ServerPath string  `toml:"server_path"`
 }
 
 // DreamConfig is the [dream] TOML table for /dream memory consolidation.

@@ -1,5 +1,7 @@
 package agentcore
 
+import "time"
+
 // AgentEvent is the sealed interface implemented by every event the loop emits.
 // Consumers dispatch with a type switch, consistent with Content. aikota covers
 // all 10 of pi's event types (PRD FR-24).
@@ -167,7 +169,8 @@ type ToolTiming struct {
 //   - how many times the context was compacted (CompactionCount),
 //   - the latest context-utilization ratio (ContextUtilization = used tokens /
 //     ContextWindow) and the raw numbers behind it,
-//   - accumulated token usage from all turns (InputTokens, OutputTokens).
+//   - accumulated token usage from all turns (InputTokens, OutputTokens),
+//   - estimated cost in USD based on provider pricing.
 type TelemetryEvent struct {
 	// Turns is the number of turns (turn_start events) the run executed.
 	Turns int
@@ -189,6 +192,12 @@ type TelemetryEvent struct {
 	InputTokens int
 	// OutputTokens is the cumulative output tokens across all turns.
 	OutputTokens int
+	// EstimatedCostUSD is the estimated cost in US dollars for this run based on
+	// provider pricing. Zero if pricing is unknown or not configured.
+	EstimatedCostUSD float64
+	// Provider is the canonical provider name (e.g. "anthropic", "openai") used
+	// for this run, enabling downstream cost estimation.
+	Provider string
 	// LastErrorType categorizes the most recent provider/tool failure:
 	//   "api"     — provider returned an error response (4xx/5xx, malformed body)
 	//   "auth"    — authentication / authorization failure (invalid key, expired token)
@@ -202,6 +211,10 @@ type TelemetryEvent struct {
 	LastErrorMsg string
 	// ToolErrorCount is how many tool executions terminated with IsError=true.
 	ToolErrorCount int
+	// StartTime is the wall-clock time when this run started (zero value means not set).
+	StartTime time.Time
+	// FirstTokenTimeMs is the latency in milliseconds from run start to first token received (0 if not measured).
+	FirstTokenTimeMs int64
 }
 
 func (AgentStartEvent) isAgentEvent()          {}

@@ -12,6 +12,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Ai-Kota/aikota/internal/agentcore"
 	"github.com/Ai-Kota/aikota/internal/cli"
@@ -23,7 +24,7 @@ import (
 
 // RunStatus prints a colored multi-section status report to out using data
 // read from host through the cli.Host accessors. It shows runtime config,
-// context usage, project/environment, credentials, and telemetry.
+// context usage, project/environment, credentials, diagnostics, and telemetry.
 func RunStatus(out io.Writer, host cli.Host) {
 	color := ui.Enabled()
 
@@ -35,6 +36,8 @@ func RunStatus(out io.Writer, host cli.Host) {
 	printEnvStatus(out, color, host)
 	fmt.Fprintln(out)
 	printCredentialsStatus(out, color, host)
+	fmt.Fprintln(out)
+	printDiagnosticStatus(out, color, host)
 	fmt.Fprintln(out)
 	printTelemetryStatus(out, color, host)
 }
@@ -236,10 +239,46 @@ func maskKey(key string) string {
 	return strings.Repeat("•", tail) + string(r[len(r)-tail:])
 }
 
+// printDiagnosticStatus prints the recent diagnostic errors section.
+func printDiagnosticStatus(out io.Writer, color bool, host cli.Host) {
+	holder := host.Telemetry()
+	if holder == nil || !holder.HasTelemetry() {
+		fmt.Fprintf(out, "%s\n", ui.Colorize(color, ui.Bold, "diagnostics:"))
+		fmt.Fprintf(out, "  %s %s\n", ui.Colorize(color, ui.Dim, "status:"), ui.Colorize(color, ui.Dim, "no diagnostics yet"))
+		return
+	}
+	errs := holder.DiagnosticErrors()
+	if len(errs) == 0 {
+		fmt.Fprintf(out, "%s\n", ui.Colorize(color, ui.Bold, "diagnostics:"))
+		fmt.Fprintf(out, "  %s %s\n", ui.Colorize(color, ui.Dim, "status:"), ui.Colorize(color, ui.Green, "ok"))
+		return
+	}
+	fmt.Fprintf(out, "%s\n", ui.Colorize(color, ui.Bold, "diagnostics:"))
+	fmt.Fprintf(out, "  %s %d\n", ui.Colorize(color, ui.Dim, "recent errors:"), len(errs))
+	for i, e := range errs {
+		ts := ""
+		if e.Timestamp > 0 {
+			// Show relative time
+			age := time.Since(time.UnixMilli(e.Timestamp))
+			if age < 2*time.Minute {
+				ts = fmt.Sprintf(" (%.0fs ago)", age.Seconds())
+			} else {
+				ts = fmt.Sprintf(" (%.0fm ago)", age.Minutes())
+			}
+		}
+		msg := e.Message
+		if len(msg) > 60 {
+			msg = msg[:60] + "…"
+		}
+		fmt.Fprintf(out, "    %d. [%s] %s%s\n", i+1, e.ErrorType, e.ToolName, ts)
+		fmt.Fprintf(out, "       %s\n", ui.Colorize(color, ui.Dim, msg))
+	}
+}
+
 // printTelemetryStatus prints the telemetry section with two sub-blocks -
 // cumulative (since session start) and last run - each showing turn count,
-// truncation/compaction counts, context utilization, and a per-tool table.
-// Both blocks show "no telemetry yet" before any run has completed.
+// truncation/compaction counts, context utilization, cost, TTFB, and a
+// per-tool table. Both blocks show "no telemetry yet" before any run has completed.
 func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 	fmt.Fprintf(out, "%s\n", ui.Colorize(color, ui.Bold, "telemetry:"))
 	holder := host.Telemetry()
@@ -256,6 +295,8 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 		holder.CumulativeToolDurations(),
 		holder.CumulativeInputTokens(),
 		holder.CumulativeOutputTokens(),
+		holder.CumulativeEstimatedCostUSD(),
+		host,
 	)
 	if last := holder.Last(); last != nil {
 		printTelemetryBlock(out, color, "last run:",
@@ -266,6 +307,8 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 			last.ToolDurationsMs,
 			last.InputTokens,
 			last.OutputTokens,
+			last.EstimatedCostUSD,
+			host,
 		)
 	} else {
 		fmt.Fprintf(out, "  %s %s\n", ui.Colorize(color, ui.Dim, "last run:"), ui.Colorize(color, ui.Dim, "no telemetry yet"))
@@ -273,13 +316,24 @@ func printTelemetryStatus(out io.Writer, color bool, host cli.Host) {
 }
 
 // printTelemetryBlock renders one telemetry sub-block (cumulative or last run).
-func printTelemetryBlock(out io.Writer, color bool, label string, turns, trunc, compact int, util float64, tools map[string]agentcore.ToolTiming, inputTokens, outputTokens int) {
+func printTelemetryBlock(out io.Writer, color bool, label string, turns, trunc, compact int, util float64, tools map[string]agentcore.ToolTiming, inputTokens, outputTokens int, costUSD float64, host cli.Host) {
 	fmt.Fprintf(out, "  %s\n", ui.Colorize(color, ui.Cyan, label))
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "turns:"), turns)
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "truncations:"), trunc)
 	fmt.Fprintf(out, "    %s %d\n", ui.Colorize(color, ui.Dim, "compactions:"), compact)
 	fmt.Fprintf(out, "    %s %s\n", ui.Colorize(color, ui.Dim, "utilization:"), fmt.Sprintf("%.0f%%", util*100))
 	fmt.Fprintf(out, "    %s %d %s %d\n", ui.Colorize(color, ui.Dim, "input tokens:"), inputTokens, ui.Colorize(color, ui.Dim, "output tokens:"), outputTokens)
+	if costUSD > 0 {
+		fmt.Fprintf(out, "    %s $%.4f\n", ui.Colorize(color, ui.Dim, "estimated cost:"), costUSD)
+	} else {
+		fmt.Fprintf(out, "    %s unknown\n", ui.Colorize(color, ui.Dim, "estimated cost:"))
+	}
+	// Show TTFB from last run (only for "last run" block, not cumulative).
+	if label == "last run:" {
+		if ttfb := host.Telemetry().LastFirstTokenTimeMs(); ttfb > 0 {
+			fmt.Fprintf(out, "    %s %dms\n", ui.Colorize(color, ui.Dim, "TTFB:"), ttfb)
+		}
+	}
 	if len(tools) == 0 {
 		fmt.Fprintf(out, "    %s (none)\n", ui.Colorize(color, ui.Dim, "tools:"))
 		return

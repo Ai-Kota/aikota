@@ -158,6 +158,9 @@ type cliOptions struct {
 	// defaults applied. The interactive REPL consumes it to decide the startup
 	// background auto-consolidation (US-008). Like memory it has no CLI flags.
 	dreamCfg dream.Config
+	// lspCfg is the resolved [lsp] configuration, populated by applyFileConfig.
+	// Empty server_path means auto-detect gopls; enabled defaults true.
+	lspCfg config.LspConfig
 	// allowedTools and disallowedTools are the --allowed-tools/--disallowed-tools
 	// values: the tool-level admission boundary for the run, filling the gap
 	// between "all tools" and --no-tools. Each is repeatable and each value may be
@@ -385,6 +388,12 @@ func applyFileConfig(opts *cliOptions, cfg config.FileConfig, changed func(strin
 	// the table is absent) so the interactive startup trigger has a resolved
 	// Config. NewConfig treats a nil enabled as true, so dream is on by default.
 	opts.dreamCfg = dream.NewConfig(cfg.Dream.Enabled, cfg.Dream.IntervalDays, cfg.Dream.RecentSessions)
+	// LSP config: enabled defaults true; server_path empty means auto-detect.
+	opts.lspCfg = cfg.Lsp
+	if opts.lspCfg.Enabled == nil {
+		enabled := true
+		opts.lspCfg.Enabled = &enabled
+	}
 }
 
 // dispatch runs the resolved command and returns a process exit code, writing
@@ -459,7 +468,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 			fmt.Fprintln(errOut, "aikota: no prompt (use -p \"...\" or positional args)")
 			return 2
 		}
-		env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
+		env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell, opts.lspCfg.Enabled != nil && *opts.lspCfg.Enabled, opts.lspCfg.ServerPath)
 		if err != nil {
 			fmt.Fprintf(errOut, "aikota: %v\n", err)
 			return setupExitCode(err)
@@ -535,7 +544,7 @@ func dispatch(ctx context.Context, opts cliOptions, out, errOut io.Writer) int {
 		return 2
 	}
 
-	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
+	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell, opts.lspCfg.Enabled != nil && *opts.lspCfg.Enabled, opts.lspCfg.ServerPath)
 	if err != nil {
 		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)
@@ -587,7 +596,7 @@ func runGitHubReview(ctx context.Context, opts cliOptions, errOut io.Writer) int
 		fmt.Fprintf(errOut, "aikota: --github-review requires a webhook secret in $%s\n", opts.githubWebhookSecretEnv)
 		return 2
 	}
-	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell)
+	env, err := run.SetupEnv(opts.model, opts.baseURL, opts.protocol, opts.provider, opts.apiKey, opts.noTools, opts.noSkills, opts.systemPrompt, opts.appendSystemPrompt, opts.memory.Memory.Enabled, run.NewToolPolicy(opts.allowedTools, opts.disallowedTools), opts.shell, opts.lspCfg.Enabled != nil && *opts.lspCfg.Enabled, opts.lspCfg.ServerPath)
 	if err != nil {
 		fmt.Fprintf(errOut, "aikota: %v\n", err)
 		return setupExitCode(err)

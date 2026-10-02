@@ -268,6 +268,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.MouseClickMsg:
+		// Right-click copies the current mouse selection to the system clipboard
+		// (over OSC52) — the mouse equivalent of the Ctrl+C copy path, for
+		// terminals whose right-click does not natively deliver a bracketed
+		// paste. It never interrupts or quits; with no selection it is a no-op.
+		if msg.Button == tea.MouseRight {
+			return m.copySelection()
+		}
 		// A left press on the scrollbar column grabs the thumb (jump + drag). A left
 		// press anywhere else begins a text selection at that cell, replacing any
 		// prior one; a bare click (no drag) leaves it empty so it clears the old
@@ -1314,6 +1321,20 @@ func (m Model) selectedText() string {
 		wrote = true
 	}
 	return b.String()
+}
+
+// copySelection copies the currently selected text to the system clipboard over
+// OSC52 and clears the selection. It mirrors the ctrl+c copy path so right-click
+// on the mouse works equivalently to the keyboard shortcut. If the selection is
+// empty, or the selected text is blank, it returns nil (a no-op command).
+func (m Model) copySelection() (tea.Model, tea.Cmd) {
+	text := m.selectedText()
+	if text == "" {
+		m.sel = selection{}
+		return m, nil
+	}
+	m.sel = selection{}
+	return m, tea.SetClipboard(text)
 }
 
 // relayout re-sizes the transcript to the rows left after reserving the status

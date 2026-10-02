@@ -168,6 +168,10 @@ func newRunSessionWithStore(store *session.Store, opts Options) (*runSession, []
 			sysPrompt = opts.SysPrompt
 		}
 		agentCtx = &agentcore.AgentContext{SystemPrompt: sysPrompt, Messages: msgs, Tools: opts.Tools}
+		// Check if this session ended in a crash (unexpected termination).
+		if crashed, cerr := store.IsCrashed(opts.ResumeID); cerr == nil && crashed {
+			fmt.Fprintf(os.Stderr, "aikota: session %s was terminated unexpectedly — consider /rewind to undo unverified changes\n", opts.ResumeID)
+		}
 		history = msgs
 	} else {
 		agentCtx = &agentcore.AgentContext{SystemPrompt: opts.SysPrompt, Tools: opts.Tools}

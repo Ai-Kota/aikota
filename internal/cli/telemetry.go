@@ -15,7 +15,7 @@ type TelemetryHolder struct {
 	// last is the telemetry event from the most recent completed run, or nil if
 	// no run has completed yet.
 	last *agentcore.TelemetryEvent
-	// cumulative is the accumulator that sums metrics across all runs.
+	// cumulative is the accumulator that sums metrics across all runs in the session.
 	cumulative cumulativeTelemetry
 }
 
@@ -44,6 +44,10 @@ type cumulativeTelemetry struct {
 	lastErrorMsg string
 	// toolErrorCount is the total tool execution errors across all runs.
 	toolErrorCount int
+	// estimatedCostUSD is the total estimated cost in USD across all runs.
+	estimatedCostUSD float64
+	// firstTokenTimeMs is the TTFB from the most recent run.
+	firstTokenTimeMs int64
 }
 
 // NewTelemetryHolder creates a new, empty TelemetryHolder with no telemetry yet.
@@ -90,6 +94,12 @@ func (h *TelemetryHolder) Fold(ev agentcore.TelemetryEvent) {
 		h.cumulative.lastErrorMsg = ev.LastErrorMsg
 	}
 	h.cumulative.toolErrorCount += ev.ToolErrorCount
+
+	// Accumulate cost.
+	h.cumulative.estimatedCostUSD += ev.EstimatedCostUSD
+
+	// Track TTFB from last run.
+	h.cumulative.firstTokenTimeMs = ev.FirstTokenTimeMs
 
 	// Sum the per-tool timings.
 	for name, timing := range ev.ToolDurationsMs {
@@ -180,4 +190,37 @@ func (h *TelemetryHolder) LastErrorMsg() string {
 // CumulativeToolErrorCount returns the total tool execution errors across all runs.
 func (h *TelemetryHolder) CumulativeToolErrorCount() int {
 	return h.cumulative.toolErrorCount
+}
+
+// CumulativeEstimatedCostUSD returns the total estimated cost in USD across all runs.
+func (h *TelemetryHolder) CumulativeEstimatedCostUSD() float64 {
+	return h.cumulative.estimatedCostUSD
+}
+
+// LastEstimatedCostUSD returns the estimated cost for the last run.
+func (h *TelemetryHolder) LastEstimatedCostUSD() float64 {
+	if h.last == nil {
+		return 0
+	}
+	return h.last.EstimatedCostUSD
+}
+
+// LastFirstTokenTimeMs returns the TTFB in milliseconds for the last run, or 0
+// if no telemetry is available.
+func (h *TelemetryHolder) LastFirstTokenTimeMs() int64 {
+	if h.last == nil {
+		return 0
+	}
+	return h.last.FirstTokenTimeMs
+}
+
+// DiagnosticErrors returns the recent diagnostic errors from the last run.
+func (h *TelemetryHolder) DiagnosticErrors() []agentcore.DiagnosticEntry {
+	if h.last == nil {
+		return nil
+	}
+	// Errors are tracked per-run in the telemetry; we expose the last run's errors.
+	// Since TelemetryEvent doesn't carry a full error list yet, we return nil
+	// here. The structured error history is maintained in the runtime layer.
+	return nil
 }

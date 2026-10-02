@@ -12,16 +12,16 @@ import (
 	"github.com/Ai-Kota/aikota/internal/memory"
 )
 
-// Consolidator is the LLM-driven apply step, injected so the deterministic
-// Runner skeleton can run end-to-end without an LLM. It receives the plain-data
+// Consolidator is the LLM-driven apply step. It receives the plain-data
 // plan (dedupe groups + invalid-path refs + near-dup candidate pairs) and
 // returns the semantic decisions: which merged bodies to rewrite, which entries
 // to delete (merged-away / pruned), and which new entries to distill.
 //
-// #523 will implement a real Consolidator backed by the main-session model and
-// the dream system prompt (SPEC §5.1 step 5, §5.1.1). Until then the Runner uses
-// nopConsolidator, so the deterministic half (exact dedup + path clean +
-// Reconcile) is fully exercised and testable in isolation.
+// The production implementation (llmConsolidator) is wired via
+// NewLLMConsolidator in apply.go, which resolves the main-session provider
+// and drives one non-streaming completion per consolidate call. The runner
+// falls back to nopConsolidator when none is injected (e.g. dry-run analysis
+// in tests or when the LLM step is intentionally skipped).
 type Consolidator interface {
 	Consolidate(ctx context.Context, in ConsolidateInput) (ConsolidateResult, error)
 }
@@ -31,7 +31,7 @@ type Consolidator interface {
 // refs and near-dup pairs) plus the resolved roots so the implementation can
 // compute in-scope write targets. It intentionally carries no behavior and no
 // live handles (no *memory.Store, no *sql.DB) so it stays trivially serializable
-// if #523 chooses to marshal it across a subprocess/RPC boundary.
+// if a subprocess/RPC boundary is desired (e.g. for isolation).
 type ConsolidateInput struct {
 	Plan       Plan   `json:"plan"`
 	MemoryRoot string `json:"memory_root"`

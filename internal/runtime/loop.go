@@ -171,6 +171,8 @@ func runLoop(ctx context.Context, agentCtx *agentcore.AgentContext, cfg RunConfi
 	// truncation count, compaction count, latest context-utilization ratio) from
 	// the events emitted below, surfaced as a TelemetryEvent at run end.
 	tel := newTelemetry()
+	// Set provider name for cost calculation
+	tel.setProvider(cfg.Provider)
 	// newMessages returns the messages appended since the run began.
 	newMessages := func() []agentcore.AgentMessage {
 		if len(agentCtx.Messages) <= startIdx {

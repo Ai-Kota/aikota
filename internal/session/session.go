@@ -91,6 +91,11 @@ type SessionHeader struct {
 	// into an inherited checkpoint (#480). Messages before this index live in the
 	// checkpoint summary rather than the replayed transcript. Optional/additive.
 	ContextWatermark int `json:"contextWatermark,omitempty"`
+	// Crashed is true if the session was terminated unexpectedly (panic, kill,
+	// OOM) rather than cleanly. Set when the runner detects a crash so the UI
+	// can prompt recovery on next load. Optional and additive: older schemas
+	// omit it and load normally.
+	Crashed bool `json:"crashed,omitempty"`
 }
 
 // Entry wraps one persisted message with the tree metadata introduced in schema
@@ -697,4 +702,28 @@ func (s *Store) Fork(sourceID, leafID string, now time.Time) (SessionHeader, []E
 		return SessionHeader{}, nil, err
 	}
 	return newHeader, path, nil
+}
+
+// IsCrashed reports whether the session file exists and its header marks
+// crashed=true. This is used by the TUI to surface a recovery prompt on next
+// load after an unexpected termination. Returns false when the session does
+// not exist (no crash state to report).
+func (s *Store) IsCrashed(id string) (bool, error) {
+	h, err := s.loadHeader(id)
+	if err != nil {
+		return false, err
+	}
+	return h.Crashed, nil
+}
+
+// ClearCrashed clears the crashed flag on the next save. Call this from the
+// hook that handles a recovery decision so a resumed session no longer looks
+// crashed.
+func (s *Store) ClearCrashed(id string) error {
+	h, msgs, err := s.Load(id)
+	if err != nil {
+		return err
+	}
+	h.Crashed = false
+	return s.Save(h, msgs)
 }
