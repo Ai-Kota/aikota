@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -219,6 +220,10 @@ func normalizeFetchURL(raw string) (string, error) {
 	}
 	if u.Host == "" {
 		return "", fmt.Errorf("url has no host: %q", raw)
+	}
+	// SSRF protection: reject private/link-local/loopback IPs (RFC 1918 / RFC 3927 / RFC 4291).
+	if ip := net.ParseIP(u.Host); ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()) {
+		return "", fmt.Errorf("url resolves to private IP %s — blocking to prevent SSRF", ip)
 	}
 	return u.String(), nil
 }

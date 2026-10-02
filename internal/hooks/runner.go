@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Ai-Kota/aikota/internal/provider"
+	"github.com/Ai-Kota/aikota/internal/procutil"
 )
 
 // MaxOutputBytes caps the bytes captured from a hook's stdout and stderr each
@@ -61,6 +62,7 @@ func (r *Runner) Run(ctx context.Context, h HookConfig, input HookInput) (HookOu
 		shell = "sh"
 	}
 	cmd := exec.CommandContext(runCtx, shell, "-c", h.Command)
+	procutil.SetProcessGroup(cmd)
 	cmd.Dir = r.ProjectDir
 	cmd.Env = r.env(input)
 	cmd.Stdin = bytes.NewReader(payload)
