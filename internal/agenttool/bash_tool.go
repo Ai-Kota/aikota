@@ -339,6 +339,13 @@ func (t *BashTool) Execute(ctx context.Context, id string, args json.RawMessage,
 	sw := streamWriter{mu: &mu, buf: &combined, onUpdate: onUpdate}
 	cmd.Stdout = sw
 	cmd.Stderr = sw
+	// On timeout, CommandContext kills the shell, but a grandchild it spawned
+	// (e.g. `bash -c "sleep 5"` forking sleep) can inherit the stdout/stderr pipes
+	// and keep them open, blocking cmd.Run until that grandchild exits on its own
+	// — so Execute would return only after the full command duration, not the timeout.
+	// WaitDelay bounds that wait: after the process is killed, Go force-closes the
+	// I/O pipes so Execute returns promptly.
+	cmd.WaitDelay = time.Second
 
 	err := cmd.Run()
 

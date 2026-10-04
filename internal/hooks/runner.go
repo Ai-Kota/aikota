@@ -41,6 +41,23 @@ type Runner struct {
 	WarnLog    io.Writer
 }
 
+// Shell resolves the default interpreter for hook commands. It honors the
+// explicit Runner.Shell (POSIX-style "<shell> -c <command>"), falls back to
+// "sh" when it is available on PATH, then tries "bash" (Git Bash / MSYS on
+// Windows, native on POSIX). A missing interpreter is surfaced as an actionable
+// *exec.Error rather than a silent failure (mirrors bash_tool's resolveShell
+// contract: issue #518). Runners whose Shell field is left empty work on every
+// supported platform without per-test plumbing.
+func defaultShell() (shell, flag string) {
+	if p, err := exec.LookPath("sh"); err == nil {
+		return p, "-c"
+	}
+	if p, err := exec.LookPath("bash"); err == nil {
+		return p, "-c"
+	}
+	return "powershell", "-Command"
+}
+
 // Run executes one hook, writing input as a single-line JSON document to the
 // command's stdin. It returns the parsed HookOutput and a non-nil error only
 // for an execution *failure* (could not start, timed out, or exited non-zero
@@ -57,11 +74,11 @@ func (r *Runner) Run(ctx context.Context, h HookConfig, input HookInput) (HookOu
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	shell := r.Shell
+	shell, flag := r.Shell, "-c"
 	if shell == "" {
-		shell = "sh"
+		shell, flag = defaultShell()
 	}
-	cmd := exec.CommandContext(runCtx, shell, "-c", h.Command)
+	cmd := exec.CommandContext(runCtx, shell, flag, h.Command)
 	procutil.SetProcessGroup(cmd)
 	cmd.Dir = r.ProjectDir
 	cmd.Env = r.env(input)

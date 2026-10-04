@@ -26,9 +26,6 @@ func TestNilDispatcherDispatchIsNoOp(t *testing.T) {
 }
 
 func TestDispatchMergesContext(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("sh -c not available on windows")
-	}
 	set := HookSet{
 		"PostToolUse": {
 			{Matcher: "*", Hooks: []HookConfig{
@@ -45,9 +42,6 @@ func TestDispatchMergesContext(t *testing.T) {
 }
 
 func TestDispatchPreToolUseFirstBlockShortCircuits(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("sh -c not available on windows")
-	}
 	set := HookSet{
 		"PreToolUse": {
 			{Matcher: "*", Hooks: []HookConfig{
@@ -67,9 +61,6 @@ func TestDispatchPreToolUseFirstBlockShortCircuits(t *testing.T) {
 }
 
 func TestDispatchFailOpen(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("sh -c not available on windows")
-	}
 	set := HookSet{
 		"PreToolUse": {
 			{Matcher: "*", Hooks: []HookConfig{
@@ -93,9 +84,6 @@ func TestDispatchFailOpen(t *testing.T) {
 }
 
 func TestDispatchUpdatedInputLastWins(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("sh -c not available on windows")
-	}
 	set := HookSet{
 		"PreToolUse": {
 			{Matcher: "*", Hooks: []HookConfig{
@@ -108,5 +96,26 @@ func TestDispatchUpdatedInputLastWins(t *testing.T) {
 	dec := d.Dispatch(context.Background(), "PreToolUse", "bash", HookInput{})
 	if string(dec.UpdatedInput) != `{"n":2}` {
 		t.Fatalf("expected last writer wins, got %s", dec.UpdatedInput)
+	}
+}
+
+// TestDispatchWindowsFallback exercises the dispatcher with the real shell
+// resolution on Windows so the end-to-end path is covered. The commands used
+// are portable (echo/exit) and work in both sh and powershell.
+func TestDispatchWindowsFallback(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only dispatch fallback test")
+	}
+	set := HookSet{
+		"PostToolUse": {
+			{Matcher: "*", Hooks: []HookConfig{
+				{Command: `echo '{"additionalContext":"win-ok"}'`},
+			}},
+		},
+	}
+	d := NewDispatcher(set, t.TempDir(), nil)
+	dec := d.Dispatch(context.Background(), "PostToolUse", "bash", HookInput{})
+	if dec.AdditionalContext != "win-ok" {
+		t.Fatalf("expected 'win-ok', got %q", dec.AdditionalContext)
 	}
 }

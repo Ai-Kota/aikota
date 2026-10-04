@@ -68,8 +68,24 @@ type PromptConfig struct {
 // PromptConfig.BaseInstruction is empty.
 const DefaultBaseInstruction = "You are aikota, a helpful coding agent. " +
 	"Use the available tools to inspect files and accomplish the user's request precisely and concisely.\n\n" +
+	shellGuide + "\n\n" +
 	todoGuide + "\n\n" +
 	taskGuide
+
+// shellGuide instructs the model on platform-aware shell usage. The bash tool
+// auto-resolves the interpreter (Git Bash > WSL > PowerShell > cmd on Windows;
+// bash everywhere else), so the model should prefer portable POSIX syntax
+// (`ls`, `grep`, `find`, `cat`, `echo`) in bash calls. For Windows-native
+// operations (PowerShell cmdlets, registry, .exe paths with backslashes), use
+// the bash tool with a PowerShell or cmd command instead of forcing bash.
+// The OS is stated in the environment block below; let it guide which syntax
+// to pick when a command is OS-specific.
+const shellGuide = "Shell usage by platform:\n" +
+	"- On POSIX (Linux/macOS): use bash commands freely.\n" +
+	"- On Windows: prefer portable POSIX syntax in bash (`ls`, `grep`, `find`); " +
+	"for Windows-native ops (PowerShell cmdlets, .exe paths, registry) run " +
+	"`bash(powershell -Command '...')` or `bash(cmd /C '...')`. " +
+	"Never pass Windows CMD flags (`/s`, `/b`) to bash — they are invalid there."
 
 // todoGuide instructs the model on how to drive the todo tool. It is appended to
 // the default base instruction so multi-step work is planned and its progress is
